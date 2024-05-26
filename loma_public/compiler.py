@@ -168,8 +168,49 @@ void atomic_add(float *ptr, float val) {
         \n""" + code
 
         print('Generated ISPC code:')
+        code = """
+            void atomic_add(float *ptr, float val) {
+    float found = *ptr;
+    float expected;
+    do {
+        expected = found;
+        found = atomic_compare_exchange_global(ptr, expected, expected + val);
+    } while (found != expected);
+}
+        
+struct Matrix {
+        float* data;
+        int num_rows;
+        int num_cols;
+};
+struct Vector {
+        float* data;
+        int size;
+};
+export void parallel_add(uniform float* uniform x, uniform float* uniform y, uniform float* uniform z, uniform int total_work);
+extern "C" void vector_add(Vector x, Vector y, Vector* z);
+task void __parallel_add_task(uniform float* uniform x, uniform float* uniform y, uniform float* uniform z, uniform int total_work, uniform int work_per_task, uniform int task_index) {
+        uniform int id_offset = work_per_task * task_index;
+        uniform int work_end = min(id_offset + work_per_task, total_work);
+        foreach (__work_id = id_offset ... work_end) {
+                int i = __work_id;
+                (z)[i] = ((x)[i]) + ((y)[i]);
+        }
+}
+export void parallel_add(uniform float* uniform x, uniform float* uniform y, uniform float* uniform z, uniform int total_work) {
+        uniform int num_tasks = num_cores() * 4;
+        uniform int work_per_task = total_work / num_tasks;
+        if (total_work % num_tasks != 0) work_per_task++;
+        for (uniform int task_index = 0; task_index < num_tasks; task_index++) {
+                launch __parallel_add_task(x, y, z, total_work, work_per_task, task_index);
+        }
+        sync;
+}
+extern "C" void vector_add(Vector x, Vector y, Vector* z) {
+        parallel_add((x).data,(y).data,((*z)).data,10);
+}
+        \n"""
         print(code)
-
         obj_filename = output_filename + '.o'
         log = run(['ispc', '--pic', '-o', obj_filename, '-O2', '-'],
             input = code,

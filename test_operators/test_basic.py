@@ -7,7 +7,7 @@ import compiler
 import ctypes
 
 import numpy as np
-from utils import check_res
+from utils import *
 np.random.seed(0)
 
 def test_basic_ispc():
@@ -18,16 +18,16 @@ def test_basic_ispc():
                                   output_filename = '_code/basic')
     
     # Test vector_add
-    v1 = np.random.rand(10).astype(np.float32)
-    v2 = np.random.rand(10).astype(np.float32)
-    v3_out = np.zeros_like(v1)
-    v1_arr = v1.flatten().ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-    v2_arr = v2.flatten().ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-    
+    v1 = np.random.rand(10)
+    v2 = np.random.rand(10)
+    v1_ctype = build_ctypes([v1, 10], struct, 'Vector')
+    v2_ctype = build_ctypes([v2, 10], struct, 'Vector')
+    v3_ctype = build_ctypes([np.zeros_like(v1), 10], struct, 'Vector')
+    lib.vector_add(v1_ctype, v2_ctype, v3_ctype)
+    v3_out = build_numpys(v3_ctype, 'Vector')
     v3_ref = v1 + v2
-    lib.vector_add(v1_arr, v2_arr, v3_out.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), 10)
     check_res(v3_out, v3_ref, "vector_add")
-        
+    
     # a = np.random.rand(5, 3)
     # b = np.random.rand(3, 2)
     # c = a @ b
