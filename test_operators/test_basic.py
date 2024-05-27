@@ -20,23 +20,24 @@ def test_basic_ispc():
     # Test vector_add
     v1 = np.random.rand(10)
     v2 = np.random.rand(10)
-    v1_ctype = build_ctypes([v1, 10], struct, 'Vector')
-    v2_ctype = build_ctypes([v2, 10], struct, 'Vector')
-    v3_ctype = build_ctypes([np.zeros_like(v1), 10], struct, 'Vector')
-    lib.vector_add(v1_ctype, v2_ctype, v3_ctype)
-    v3_out = build_numpys(v3_ctype, 'Vector')
+    v1_ctype = build_ctypes([v1, 10], struct, None)
+    v2_ctype = build_ctypes([v2, 10], struct, None)
+    v3_ctype = build_ctypes([np.zeros_like(v1), 10], struct, None)
+    lib.vector_add(v1_ctype, v2_ctype, v3_ctype, 10)
+    v3_out = build_numpys(v3_ctype, None)
     v3_ref = v1 + v2
     check_res(v3_out, v3_ref, "vector_add")
     
-    # a = np.random.rand(5, 3)
-    # b = np.random.rand(3, 2)
-    # c = a @ b
-    # print(c.shape)
-    # a_arr = a.flatten().ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-    # b_arr = b.flatten().ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-    
-    # c = a @ b
-    # print(c.flatten)
+    # Test matrix_mul
+    m1 = np.random.rand(3, 10)
+    m2 = np.random.rand(10, 3)
+    m1_ctype = build_ctypes([m1, 30], struct, None)
+    m2_ctype = build_ctypes([m2, 30], struct, None)
+    m3_ctype = build_ctypes([np.zeros((3, 3)), 9], struct, None)
+    lib.matrix_mul(m1_ctype, m2_ctype, m3_ctype, 3, 10, 3, 10)
+    m3_out = build_numpys(m3_ctype, None).reshape(3, 3)
+    m3_ref = m1 @ m2
+    check_res(m3_out, m3_ref, "matrix_mul")
 
 if __name__ == '__main__':
     

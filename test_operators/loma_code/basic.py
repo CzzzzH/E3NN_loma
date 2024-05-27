@@ -6,32 +6,36 @@ class Matrix:
 class Vector:
     data: Array[float]
     size: int
+    
+# Can not work!
+# @simd
+# def vector_add(x : In[Vector],
+#                y : In[Vector],
+#                z : Out[Vector]):
+#     i : int = thread_id()
+#     # z.data[i] = x.data[i] + y.data[i]
 
 @simd
-def parallel_add(x : In[Array[float]],
+def vector_add(x : In[Array[float]],
                y : In[Array[float]],
                z : Out[Array[float]]):
     i : int = thread_id()
     z[i] = x[i] + y[i]
 
-# def vector_add2(x : In[Array[float]],
-#                y : In[Array[float]],
-#                z : Out[Array[float]],
-#                n : In[int]):
-#     i : int = 0
-#     while (i < n, max_iter := 1000):
-#         z[i] = x[i] + y[i]
-#         i = i + 1
-
-def vector_add(x : In[Vector],
-               y : In[Vector],
-               z : Out[Vector]):
-    # i : int = 0
-    # z.size = x.size
-    # while (i < z.size, max_iter := 1000):
-    #     z.data[i] = x.data[i] + y.data[i]
-    #     i = i + 1
-    # vector_add2(x.data, y.data, z.data, x.size)
-    z.size = x.size
-    parallel_add(x.data, y.data, z.data, z.size)
+@simd
+def matrix_mul(x : In[Array[float]],
+               y : In[Array[float]],
+               z : Out[Array[float]],
+               z_row: In[int],
+               mid: In[int],
+               z_col: In[int]):
+    k : int = thread_id()
+    i : int = 0
+    j : int = 0
+    while (i < z_row, max_iter := 100):
+        j = 0
+        while (j < z_col, max_iter := 100):
+            atomic_add(z[z_col * i + j], x[mid * i + k] * y[z_col * k + j])
+            j = j + 1
+        i = i + 1
     
