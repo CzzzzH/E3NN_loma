@@ -1,20 +1,3 @@
-class Matrix:
-    data: Array[float]
-    num_rows: int
-    num_cols: int
-    
-class Vector:
-    data: Array[float]
-    size: int
-    
-# Can not work!
-# @simd
-# def vector_add(x : In[Vector],
-#                y : In[Vector],
-#                z : Out[Vector]):
-#     i : int = thread_id()
-#     # z.data[i] = x.data[i] + y.data[i]
-
 @simd
 def vector_add(x : In[Array[float]],
                y : In[Array[float]],
@@ -22,20 +5,33 @@ def vector_add(x : In[Array[float]],
     i : int = thread_id()
     z[i] = x[i] + y[i]
 
+grad_vector_add = rev_diff(vector_add)
+
 @simd
-def matrix_mul(x : In[Array[float]],
-               y : In[Array[float]],
-               z : Out[Array[float]],
-               z_row: In[int],
-               mid: In[int],
-               z_col: In[int]):
-    k : int = thread_id()
+def linear(input: In[Array[float]],
+           weight: In[Array[float]],
+           bias: In[Array[float]],
+           output: Out[Array[float]],
+           in_features: In[int],
+           out_features: In[int]):
+    batch_idx : int = thread_id() / out_features
+    feature_idx : int = thread_id() - batch_idx * out_features
     i : int = 0
-    j : int = 0
-    while (i < z_row, max_iter := 100):
-        j = 0
-        while (j < z_col, max_iter := 100):
-            atomic_add(z[z_col * i + j], x[mid * i + k] * y[z_col * k + j])
-            j = j + 1
+    while (i < in_features, max_iter := 1000):
+        output[batch_idx * out_features + feature_idx] = output[batch_idx * out_features + feature_idx] + \
+            input[batch_idx * in_features + i] * weight[feature_idx * in_features + i]
         i = i + 1
-    
+    output[batch_idx * out_features + feature_idx] = output[batch_idx * out_features + feature_idx] + bias[feature_idx]
+
+grad_linear = rev_diff(linear)
+
+@simd
+def silu(input: In[Array[float]],
+         output: Out[Array[float]],
+         out_features: In[int]):
+    batch_idx : int = thread_id() / out_features
+    feature_idx : int = thread_id() - batch_idx * out_features
+    output[batch_idx * out_features + feature_idx] = input[batch_idx * out_features + feature_idx] * \
+        1.0 / (1.0 + exp(-input[batch_idx * out_features + feature_idx]))
+
+grad_silu = rev_diff(silu)

@@ -199,19 +199,38 @@ class CCodegenVisitor(irvisitor.IRVisitor):
                     arg1_str = self.visit_expr(node.args[1])
                     return f'{arg0_str} += {arg1_str}'
                 func_id = node.id
+                
                 # call the single precision versions of the intrinsic functions
+                # if func_id == 'sin':
+                #     func_id = 'sinf'
+                # elif func_id == 'cos':
+                #     func_id = 'cosf'
+                # elif func_id == 'sqrt':
+                #     func_id = 'sqrtf'
+                # elif func_id == 'pow':
+                #     func_id = 'powf'
+                # elif func_id == 'exp':
+                #     func_id = 'expf'
+                # elif func_id == 'log':
+                #     func_id = 'logf'
+                # elif func_id == 'int2float':
+                #     func_id = '(float)'
+                # elif func_id == 'float2int':
+                #     func_id = '(int)'
+                
+                # Use original function for ispc
                 if func_id == 'sin':
-                    func_id = 'sinf'
+                    func_id = 'sin'
                 elif func_id == 'cos':
-                    func_id = 'cosf'
+                    func_id = 'cos'
                 elif func_id == 'sqrt':
-                    func_id = 'sqrtf'
+                    func_id = 'sqrt'
                 elif func_id == 'pow':
-                    func_id = 'powf'
+                    func_id = 'pow'
                 elif func_id == 'exp':
-                    func_id = 'expf'
+                    func_id = 'exp'
                 elif func_id == 'log':
-                    func_id = 'logf'
+                    func_id = 'log'
                 elif func_id == 'int2float':
                     func_id = '(float)'
                 elif func_id == 'float2int':
