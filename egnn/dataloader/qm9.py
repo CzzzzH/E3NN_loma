@@ -2,24 +2,11 @@ import copy
 import os.path as osp
 
 import torch
-import torch.nn.functional as F
-from torch.nn import GRU, Linear, ReLU, Sequential
-
 import torch_geometric.transforms as T
 from torch_geometric.datasets import QM9
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import NNConv, Set2Set
 from torch_geometric.utils import remove_self_loops
 
-target = 0
-dim = 64
-
-
-class MyTransform:
-    def __call__(self, data):
-        data = copy.copy(data)
-        data.y = data.y[:, target]  # Specify target.
-        return data
 
 class Complete:
     def __call__(self, data):
@@ -48,26 +35,47 @@ class Complete:
         return data
 
 
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'QM9')
-transform = T.Compose([MyTransform(), Complete(), T.Distance(norm=False)])
-dataset = QM9(path, transform=transform).shuffle()
+class dataQM9:
+    def __init__(self, target=0):
+        self.path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'QM9')
+        self.target = target
+        class MyTransform:
+            def __call__(self, data):
+                data = copy.copy(data)
+                data.y = data.y[:, target]  # Specify target.
+                return data
+        self.transform = T.Compose([MyTransform(), Complete(), T.Distance(norm=False)])
+        self.get_data()
 
-# Normalize targets to mean = 0 and std = 1.
-mean = dataset.data.y.mean(dim=0, keepdim=True)
-std = dataset.data.y.std(dim=0, keepdim=True)
-dataset.data.y = (dataset.data.y - mean) / std
-mean, std = mean[:, target].item(), std[:, target].item()
+    def get_data(self):
+        dataset = QM9(self.path, transform=self.transform).shuffle()
 
-# Split datasets.
-test_dataset = dataset[:10000]
-val_dataset = dataset[10000:20000]
-train_dataset = dataset[20000:]
-test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
-val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
-train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+        # Normalize targets to mean = 0 and std = 1.
+        mean = dataset.data.y.mean(dim=0, keepdim=True)
+        std = dataset.data.y.std(dim=0, keepdim=True)
+        dataset.data.y = (dataset.data.y - mean) / std
+        mean, std = mean[:, target].item(), std[:, target].item()
 
-print(train_loader)
+        # Split datasets.
+        test_dataset = dataset[:10000]
+        val_dataset = dataset[10000:20000]
+        train_dataset = dataset[20000:]
+        test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
+        val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
 
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.test_loader = test_loader
+
+    
 # data.x, input node features, shape = [num_nodes, num_node_features]
 # data.edge_index, graph connectivity in COO format with shape [2, num_edges]
 # data.edge_attr, edge features, shape = [num_edges, num_edge_features]
+
+if __name__ == "__main__":
+    target = 0
+    data = dataQM9(target)
+    for batch in data.train_loader:
+        print(batch)
+        break
