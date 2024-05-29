@@ -221,4 +221,6 @@ class Linear(Module):
                 bias_ctype, grad_bias_ctype, output_ctype, in_features, ctypes.c_int(0), out_features, ctypes.c_int(0), 
                 num_threads)
         grad_input = build_tensor(grad_input_ctype, (bs, in_features))
-        return grad_input
+        grad_weight = build_tensor(grad_weight_ctype, (out_features, in_features))
+        grad_bias = build_tensor(grad_bias_ctype, (out_features,))
+        return grad_input, grad_weight, grad_bias
