@@ -1,12 +1,17 @@
-import os
+import os 
 import sys
+
+import ctypes
+import torch
+
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(os.path.join(parent, 'loma_public'))
-import compiler
+sys.path.append(os.path.join(parent, 'egnn/loma'))
 
-import torch
-from utils import *
+import compiler
+from utils import check_res, build_ctypes, build_tensor
+
 torch.manual_seed(0)
 
 def test_basic_ispc():
