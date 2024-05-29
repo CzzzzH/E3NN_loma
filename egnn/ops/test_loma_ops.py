@@ -11,12 +11,12 @@ class TestLomaOperators(unittest.TestCase):
         y = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_add = loma_add(x, y)
+        output_add, input_ctx = loma_add(x, y)
         output_ref_add = x + y
         
         # Backward
         output_ref_add.backward(output_ref_add)
-        grad_x_add, grad_y_add = loma_add.backward(output_add)
+        grad_x_add, grad_y_add = loma_add.backward(output_add, *input_ctx)
         grad_x_ref_add, grad_y_ref_add = x.grad, y.grad
         
         assert torch.allclose(output_add, output_ref_add)
@@ -30,12 +30,12 @@ class TestLomaOperators(unittest.TestCase):
         y = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_sub = loma_sub(x, y)
+        output_sub, input_ctx = loma_sub(x, y)
         output_ref_sub = x - y
         
         # Backward
         output_ref_sub.backward(output_ref_sub)
-        grad_x_sub, grad_y_sub = loma_sub.backward(output_sub)
+        grad_x_sub, grad_y_sub = loma_sub.backward(output_sub, *input_ctx)
         grad_x_ref_sub, grad_y_ref_sub = x.grad, y.grad
         
         assert torch.allclose(output_sub, output_ref_sub)
@@ -49,12 +49,12 @@ class TestLomaOperators(unittest.TestCase):
         y = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_multiply = loma_multiply(x, y)
+        output_multiply, input_ctx = loma_multiply(x, y)
         output_ref_multiply = x * y
         
         # Backward
         output_ref_multiply.backward(output_ref_multiply)
-        grad_x_multiply, grad_y_multiply = loma_multiply.backward(output_multiply)
+        grad_x_multiply, grad_y_multiply = loma_multiply.backward(output_multiply, *input_ctx)
         grad_x_ref_multiply, grad_y_ref_multiply = x.grad, y.grad
         
         assert torch.allclose(output_multiply, output_ref_multiply)
@@ -68,12 +68,12 @@ class TestLomaOperators(unittest.TestCase):
         y = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_divide = loma_divide(x, y)
+        output_divide, input_ctx = loma_divide(x, y)
         output_ref_divide = x / y
         
         # Backward
         output_ref_divide.backward(output_ref_divide)
-        grad_x_divide, grad_y_divide = loma_divide.backward(output_divide)
+        grad_x_divide, grad_y_divide = loma_divide.backward(output_divide, *input_ctx)
         grad_x_ref_divide, grad_y_ref_divide = x.grad, y.grad
         
         assert torch.allclose(output_divide, output_ref_divide)
@@ -86,12 +86,12 @@ class TestLomaOperators(unittest.TestCase):
         input_sqrt = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_sqrt = loma_sqrt(input_sqrt)
+        output_sqrt, input_ctx = loma_sqrt(input_sqrt)
         output_ref_sqrt = torch.sqrt(input_sqrt)
         
         # Backward
         output_ref_sqrt.backward(output_ref_sqrt)
-        grad_input_sqrt = loma_sqrt.backward(output_sqrt)
+        grad_input_sqrt = loma_sqrt.backward(output_sqrt, *input_ctx)
         grad_input_ref_sqrt = input_sqrt.grad
         
         assert torch.allclose(output_sqrt, output_ref_sqrt)
@@ -103,12 +103,12 @@ class TestLomaOperators(unittest.TestCase):
         input_sum = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_sum = loma_sum(input_sum)
+        output_sum, input_ctx = loma_sum(input_sum)
         output_ref_sum = torch.sum(input_sum, dim = 1)
         
         # Backward
         output_ref_sum.backward(output_ref_sum)
-        grad_input_sum = loma_sum.backward(output_sum)
+        grad_input_sum = loma_sum.backward(output_sum, *input_ctx)
         grad_input_ref_sum = input_sum.grad
         
         assert torch.allclose(output_sum, output_ref_sum)
@@ -120,12 +120,12 @@ class TestLomaOperators(unittest.TestCase):
         input_mean = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_mean = loma_mean(input_mean)
+        output_mean, input_ctx = loma_mean(input_mean)
         output_ref_mean = torch.mean(input_mean, dim = 1)
         
         # Backward
         output_ref_mean.backward(output_ref_mean)
-        grad_input_mean = loma_mean.backward(output_mean)
+        grad_input_mean = loma_mean.backward(output_mean, *input_ctx)
         grad_input_ref_mean = input_mean.grad
         
         assert torch.allclose(output_mean, output_ref_mean)
@@ -143,12 +143,12 @@ class TestLomaOperators(unittest.TestCase):
         torch_linear.bias.data = bias
         
         # Forward
-        output_linear = loma_linear(input_linear, torch_linear.weight, torch_linear.bias)
+        output_linear, input_ctx = loma_linear(input_linear, torch_linear.weight, torch_linear.bias)
         output_ref_linear = torch_linear(input_linear)
         
         # Backward
         output_ref_linear.backward(output_ref_linear)
-        grad_input_linear, grad_weight_linear, grad_bias_linear = loma_linear.backward(output_linear)
+        grad_input_linear, grad_weight_linear, grad_bias_linear = loma_linear.backward(output_linear, *input_ctx)
         grad_input_ref_linear = input_linear.grad
         grad_weight_ref_linear = torch_linear.weight.grad
         grad_bias_ref_linear = torch_linear.bias.grad
@@ -166,12 +166,12 @@ class TestLomaOperators(unittest.TestCase):
         input_relu = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_relu = loma_relu(input_relu)
+        output_relu, input_ctx = loma_relu(input_relu)
         output_ref_relu = torch_relu(input_relu)
         
         # Backward
         output_ref_relu.backward(output_ref_relu)
-        grad_input_relu = loma_relu.backward(output_relu)
+        grad_input_relu = loma_relu.backward(output_relu, *input_ctx)
         grad_input_ref_relu = input_relu.grad
         
         assert torch.allclose(output_relu, output_ref_relu)
@@ -185,12 +185,12 @@ class TestLomaOperators(unittest.TestCase):
         input_silu = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_silu = loma_silu(input_silu)
+        output_silu, input_ctx = loma_silu(input_silu)
         output_ref_silu = torch_silu(input_silu)
         
         # Backward
         output_ref_silu.backward(output_ref_silu)
-        grad_input_silu = loma_silu.backward(output_silu)
+        grad_input_silu = loma_silu.backward(output_silu, *input_ctx)
         grad_input_ref_silu = input_silu.grad
         
         assert torch.allclose(output_silu, output_ref_silu)
@@ -204,12 +204,12 @@ class TestLomaOperators(unittest.TestCase):
         input_sigmoid = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_sigmoid = loma_sigmoid(input_sigmoid)
+        output_sigmoid, input_ctx = loma_sigmoid(input_sigmoid)
         output_ref_sigmoid = torch_sigmoid(input_sigmoid)
         
         # Backward
         output_ref_sigmoid.backward(output_ref_sigmoid)
-        grad_input_sigmoid = loma_sigmoid.backward(output_sigmoid)
+        grad_input_sigmoid = loma_sigmoid.backward(output_sigmoid, *input_ctx)
         grad_input_ref_sigmoid = input_sigmoid.grad
         
         assert torch.allclose(output_sigmoid, output_ref_sigmoid)
@@ -224,12 +224,12 @@ class TestLomaOperators(unittest.TestCase):
         y = torch.rand(4, 10, requires_grad=True)
         
         # Forward
-        output_mse = loma_mse(x, y)
+        output_mse, input_ctx = loma_mse(x, y)
         output_ref_mse = torch_mse(x, y)
         
         # Backward
         output_ref_mse.backward(output_ref_mse)
-        grad_x_mse, grad_y_mse = loma_mse.backward(output_mse)
+        grad_x_mse, grad_y_mse = loma_mse.backward(output_mse, *input_ctx)
         grad_x_ref_mse, grad_y_ref_mse = x.grad, y.grad
         
         assert torch.allclose(output_mse, output_ref_mse)

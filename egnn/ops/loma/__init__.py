@@ -32,23 +32,28 @@ class Module:
                     _, self.lib = compiler.compile(f.read(),
                                             target = 'ispc',
                                             output_filename = f'{current}/_code/{lib_name}')
+        elif target == 'c':
+            if os.path.exists(f'{current}/_code/{lib_name}.so'):
+                self.lib = CDLL(f'{current}/_code/{lib_name}.so')
+            else:
+                with open(f'{current}/loma_code/{lib_name}.py') as f:
+                    _, self.lib = compiler.compile(f.read(),
+                                            target = 'c',
+                                            output_filename = f'{current}/_code/{lib_name}')
         elif target == 'opencl':
             # TODO: Implement OpenCL compilation
             raise NotImplementedError('OpenCL compilation is not implemented yet')
         else:
-            raise ValueError('target should be either "ispc" or "opencl"')
+            raise ValueError('target should be either "c" or "ispc" or "opencl"')
 
-    def save_input(self, *input):
-        self.input_ctx = input
-
-    def forward(self, *input):
+    def forward(self, *args):
         raise NotImplementedError('forward method is not implemented')
 
-    def backward(self, *grad_output):
+    def backward(self, *args):
         raise NotImplementedError('backward method is not implemented')
 
-    def __call__(self, *input):
-        return self.forward(*input)
+    def __call__(self, *args):
+        return self.forward(*args)
 
 class UnaryModule(Module):
 
@@ -68,12 +73,11 @@ class UnaryModule(Module):
         output_ctype = (ctypes.c_float * get_length(self.reduce, bs, num_features))(0)
         getattr(self.lib, self.func_name)(input_ctype, output_ctype, num_features, num_threads)
         output = build_tensor(output_ctype, get_shape(self.reduce, bs, num_features))
-        self.save_input(input_ctype, bs, num_features, num_threads)
-        return output
+        return output, (input_ctype, bs, num_features, num_threads)
 
-    def backward(self, grad_output):
+    def backward(self, grad_output, *input_ctx):
 
-        input_ctype, bs, num_features, num_threads = self.input_ctx
+        input_ctype, bs, num_features, num_threads = input_ctx
         output_ctype = build_ctypes(grad_output, get_length(self.reduce, bs, num_features))
         grad_input_ctype = (ctypes.c_float * (bs * num_features))(0)
         getattr(self.lib, f'grad_{self.func_name}')(input_ctype, grad_input_ctype, output_ctype, num_features, ctypes.c_int(0), num_threads)
@@ -126,12 +130,11 @@ class BinaryModule(Module):
         output_ctype = (ctypes.c_float * get_length(self.reduce, bs, num_features))(0)
         getattr(self.lib, self.func_name)(x_ctype, y_ctype, output_ctype, num_features, num_threads)
         output = build_tensor(output_ctype, get_shape(self.reduce, bs, num_features))
-        self.save_input(x_ctype, y_ctype, bs, num_features, num_threads)
-        return output
+        return output, (x_ctype, y_ctype, bs, num_features, num_threads)
 
-    def backward(self, grad_output):
+    def backward(self, grad_output, *input_ctx):
 
-        x_ctype, y_ctype, bs, num_features, num_threads = self.input_ctx
+        x_ctype, y_ctype, bs, num_features, num_threads = input_ctx
         output_ctype = build_ctypes(grad_output, get_length(self.reduce, bs, num_features))
         grad_x_ctype = (ctypes.c_float * (bs * num_features))(0)
         grad_y_ctype = (ctypes.c_float * (bs * num_features))(0)
@@ -174,12 +177,11 @@ class MSELoss(BinaryModule):
         output_ctype = (ctypes.c_float * 1)(0)
         getattr(self.lib, self.func_name)(x_ctype, y_ctype, output_ctype, bs, num_features, num_threads)
         output = build_tensor(output_ctype, [])
-        self.save_input(x_ctype, y_ctype, bs, num_features, num_threads)
-        return output
+        return output, (x_ctype, y_ctype, bs, num_features, num_threads)
 
-    def backward(self, grad_output):
+    def backward(self, grad_output, *input_ctx):
 
-        x_ctype, y_ctype, bs, num_features, num_threads = self.input_ctx
+        x_ctype, y_ctype, bs, num_features, num_threads = input_ctx
         output_ctype = build_ctypes(grad_output, 1)
         grad_x_ctype = (ctypes.c_float * (bs * num_features))(0)
         grad_y_ctype = (ctypes.c_float * (bs * num_features))(0)
@@ -205,12 +207,11 @@ class Linear(Module):
         output_ctype = (ctypes.c_float * (bs * out_features))(0)
         getattr(self.lib, self.func_name)(input_ctype, weight_ctype, bias_ctype, output_ctype, in_features, out_features, num_threads)
         output = build_tensor(output_ctype, (bs, out_features))
-        self.save_input(input_ctype, weight_ctype, bias_ctype, bs, in_features, out_features, num_threads)
-        return output
+        return output, (input_ctype, weight_ctype, bias_ctype, bs, in_features, out_features, num_threads)
 
-    def backward(self, grad_output):
+    def backward(self, grad_output, *input_ctx):
 
-        input_ctype, weight_ctype, bias_ctype, bs, in_features, out_features, num_threads = self.input_ctx
+        input_ctype, weight_ctype, bias_ctype, bs, in_features, out_features, num_threads = input_ctx
         grad_input_ctype = (ctypes.c_float * (bs * in_features))(0)
         grad_weight_ctype = (ctypes.c_float * (out_features * in_features))(0)
         grad_bias_ctype = (ctypes.c_float * (out_features))(0)
