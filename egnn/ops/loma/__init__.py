@@ -2,9 +2,7 @@ import os
 import sys
 
 current = os.path.dirname(os.path.realpath(__file__))
-parent = os.path.dirname(current)
-parent = os.path.dirname(parent)
-sys.path.append(os.path.join(parent, 'loma_public'))
+sys.path.append(os.path.join(current, 'loma_public'))
 import compiler
 
 from ctypes import CDLL

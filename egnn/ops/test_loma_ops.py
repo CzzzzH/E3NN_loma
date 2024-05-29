@@ -148,11 +148,15 @@ class TestLomaOperators(unittest.TestCase):
         
         # Backward
         output_ref_linear.backward(output_ref_linear)
-        grad_input_linear = loma_linear.backward(output_linear)
+        grad_input_linear, grad_weight_linear, grad_bias_linear = loma_linear.backward(output_linear)
         grad_input_ref_linear = input_linear.grad
+        grad_weight_ref_linear = torch_linear.weight.grad
+        grad_bias_ref_linear = torch_linear.bias.grad
         
         assert torch.allclose(output_linear, output_ref_linear)
         assert torch.allclose(grad_input_linear, grad_input_ref_linear)
+        assert torch.allclose(grad_weight_linear, grad_weight_ref_linear)
+        assert torch.allclose(grad_bias_linear, grad_bias_ref_linear)
         
     def test_relu(self):
         
