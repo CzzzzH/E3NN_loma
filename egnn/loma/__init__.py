@@ -10,6 +10,15 @@ import compiler
 from ctypes import CDLL
 from .utils import *
 
+def get_shape(reduce_level, *args):
+    return [args[i] for i in range(reduce_level)]
+
+def get_length(reduce_level, *args):
+    length = 1
+    for i in range(reduce_level):
+        length *= args[i]
+    return length
+
 class Module:
     
     def __init__(self, *args):
@@ -47,53 +56,145 @@ class UnaryModule(Module):
 
     def __init__(self, *args):
         super().__init__(*args)
-    
+        func_name, _, _ = args
+        if func_name in ['sum_', 'mean_']:
+            self.reduce = 1
+        else:
+            self.reduce = 2
+        
     def forward(self, input):
 
         bs, num_features = input.shape
         num_threads = bs * num_features
-        input_ctype = build_ctypes(input, bs * num_features)
-        output_ctype = (ctypes.c_float * (bs * num_features))(0)
+        input_ctype = build_ctypes(input, bs * num_features) 
+        output_ctype = (ctypes.c_float * get_length(self.reduce, bs, num_features))(0)
         getattr(self.lib, self.func_name)(input_ctype, output_ctype, num_features, num_threads)
-        output = build_tensor(output_ctype, (bs, num_features))
+        output = build_tensor(output_ctype, get_shape(self.reduce, bs, num_features))
         self.save_input(input_ctype, bs, num_features, num_threads)
         return output
 
     def backward(self, grad_output):
 
         input_ctype, bs, num_features, num_threads = self.input_ctx
-        output_ctype = build_ctypes(grad_output, bs * num_features)
+        output_ctype = build_ctypes(grad_output, get_length(self.reduce, bs, num_features))
         grad_input_ctype = (ctypes.c_float * (bs * num_features))(0)
         getattr(self.lib, f'grad_{self.func_name}')(input_ctype, grad_input_ctype, output_ctype, num_features, ctypes.c_int(0), num_threads)
         grad_input = build_tensor(grad_input_ctype, (bs, num_features))
         return grad_input
 
+class Sqrt(UnaryModule):
+    
+    def __init__(self, lib_name='ops', target='ispc'):
+        super().__init__('sqrt_', lib_name, target)
+
+class Sum(UnaryModule):
+    
+    def __init__(self, lib_name='ops', target='ispc'):
+        super().__init__('sum_', lib_name, target)
+
+class Mean(UnaryModule):
+    
+    def __init__(self, lib_name='ops', target='ispc'):
+        super().__init__('mean_', lib_name, target)
+
 class ReLU(UnaryModule):
 
     def __init__(self, lib_name='ops', target='ispc'):\
-        super().__init__('relu', lib_name, target)
+        super().__init__('relu_', lib_name, target)
     
-    def forward(self, input):
-        return super().forward(input)
-
-    def backward(self, grad_output):
-        return super().backward(grad_output)
-
 class SiLU(UnaryModule):
 
     def __init__(self, lib_name='ops', target='ispc'):
-        super().__init__('silu', lib_name, target)
+        super().__init__('silu_', lib_name, target)
+
+class Sigmoid(UnaryModule):
     
-    def forward(self, input):
-        return super().forward(input)
+    def __init__(self, lib_name='ops', target='ispc'):
+        super().__init__('sigmoid_', lib_name, target)
+
+class BinaryModule(Module):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        func_name, _, _ = args
+        self.reduce = 2
+        
+    def forward(self, x, y):
+
+        bs, num_features = x.shape
+        num_threads = bs * num_features
+        x_ctype = build_ctypes(x, bs * num_features) 
+        y_ctype = build_ctypes(y, bs * num_features)
+        output_ctype = (ctypes.c_float * get_length(self.reduce, bs, num_features))(0)
+        getattr(self.lib, self.func_name)(x_ctype, y_ctype, output_ctype, num_features, num_threads)
+        output = build_tensor(output_ctype, get_shape(self.reduce, bs, num_features))
+        self.save_input(x_ctype, y_ctype, bs, num_features, num_threads)
+        return output
 
     def backward(self, grad_output):
-        return super().backward(grad_output)
+
+        x_ctype, y_ctype, bs, num_features, num_threads = self.input_ctx
+        output_ctype = build_ctypes(grad_output, get_length(self.reduce, bs, num_features))
+        grad_x_ctype = (ctypes.c_float * (bs * num_features))(0)
+        grad_y_ctype = (ctypes.c_float * (bs * num_features))(0)
+        getattr(self.lib, f'grad_{self.func_name}')(x_ctype, grad_x_ctype, y_ctype, grad_y_ctype, output_ctype, num_features, ctypes.c_int(0), num_threads)
+        grad_x = build_tensor(grad_x_ctype, (bs, num_features))
+        grad_y = build_tensor(grad_y_ctype, (bs, num_features))
+        return grad_x, grad_y
+    
+class Add(BinaryModule):
+
+    def __init__(self, lib_name='ops', target='ispc'):
+        super().__init__('add_', lib_name, target)
+
+class Sub(BinaryModule):
+    
+    def __init__(self, lib_name='ops', target='ispc'):
+        super().__init__('sub_', lib_name, target)
+        
+class Mul(BinaryModule):
+    
+    def __init__(self, lib_name='ops', target='ispc'):
+        super().__init__('multiply_', lib_name, target)
+
+class Div(BinaryModule):
+    
+    def __init__(self, lib_name='ops', target='ispc'):
+        super().__init__('divide_', lib_name, target)
+
+class MSELoss(BinaryModule):
+    
+    def __init__(self, lib_name='ops', target='ispc'):
+        super().__init__('mse_', lib_name, target)
+        
+    def forward(self, x, y):
+
+        bs, num_features = x.shape
+        num_threads = bs * num_features
+        x_ctype = build_ctypes(x, bs * num_features) 
+        y_ctype = build_ctypes(y, bs * num_features)
+        output_ctype = (ctypes.c_float * 1)(0)
+        getattr(self.lib, self.func_name)(x_ctype, y_ctype, output_ctype, bs, num_features, num_threads)
+        output = build_tensor(output_ctype, [])
+        self.save_input(x_ctype, y_ctype, bs, num_features, num_threads)
+        return output
+
+    def backward(self, grad_output):
+
+        x_ctype, y_ctype, bs, num_features, num_threads = self.input_ctx
+        output_ctype = build_ctypes(grad_output, 1)
+        grad_x_ctype = (ctypes.c_float * (bs * num_features))(0)
+        grad_y_ctype = (ctypes.c_float * (bs * num_features))(0)
+        getattr(self.lib, f'grad_{self.func_name}')(x_ctype, grad_x_ctype, y_ctype, grad_y_ctype, output_ctype, bs, ctypes.c_int(0), 
+                                                        num_features, ctypes.c_int(0), num_threads)
+        grad_x = build_tensor(grad_x_ctype, (bs, num_features))
+        grad_y = build_tensor(grad_y_ctype, (bs, num_features))
+        return grad_x, grad_y
 
 class Linear(Module):
     
     def __init__(self, lib_name='ops', target='ispc'):
-        super().__init__('linear', lib_name, target)
+        super().__init__('linear_', lib_name, target)
     
     def forward(self, input, weight, bias):
 
