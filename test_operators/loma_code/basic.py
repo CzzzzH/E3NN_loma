@@ -17,12 +17,13 @@ def linear(input: In[Array[float]],
     batch_idx : int = thread_id() / out_features
     feature_idx : int = thread_id() - batch_idx * out_features
     i : int = 0
+    tmp : float = 0.0
     while (i < in_features, max_iter := 1000):
-        output[batch_idx * out_features + feature_idx] = output[batch_idx * out_features + feature_idx] + \
-            input[batch_idx * in_features + i] * weight[feature_idx * in_features + i]
+        tmp = tmp + input[batch_idx * in_features + i] * weight[feature_idx * in_features + i]
         i = i + 1
-    output[batch_idx * out_features + feature_idx] = output[batch_idx * out_features + feature_idx] + bias[feature_idx]
-
+    tmp = tmp + bias[feature_idx]
+    output[batch_idx * out_features + feature_idx] = tmp
+    
 grad_linear = rev_diff(linear)
 
 @simd

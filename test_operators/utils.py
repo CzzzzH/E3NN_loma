@@ -8,9 +8,9 @@ def check_res(a, b, test_name):
         print(f"Got Shape: {a.shape}")
         print(f"Test {test_name} failed: Shapes do not match")
         assert False
-    print(f"Expected: {b}")
-    print(f"Got: {a}")
-    if not np.allclose(a, b):
+    if not torch.allclose(a, b):
+        print(f"Expected: {b}")
+        print(f"Got: {a}")
         print(f"Test {test_name} failed: Wrong result")
         assert False
     print(f"Test {test_name} passed!")
