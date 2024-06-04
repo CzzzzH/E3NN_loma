@@ -45,10 +45,10 @@ grad_sqrt_ = rev_diff(sqrt_)
 @simd
 def sum_(input: In[Array[float]],
          output: Out[Array[float]],
-         in_features: In[int]):
-    batch_idx : int = thread_id() / in_features
-    feature_idx : int = thread_id() - batch_idx * in_features
-    atomic_add(output[batch_idx], input[batch_idx * in_features + feature_idx])
+         in_features: In[Array[int]]):
+    batch_idx : int = thread_id() / in_features[0]
+    feature_idx : int = thread_id() - batch_idx * in_features[0]
+    atomic_add(output[batch_idx], input[batch_idx * in_features[0] + feature_idx])
 
 grad_sum_ = rev_diff(sum_)
 
