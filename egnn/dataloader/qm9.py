@@ -7,7 +7,6 @@ from torch_geometric.datasets import QM9
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import remove_self_loops
 
-
 class Complete:
     def __call__(self, data):
         data = copy.copy(data)
@@ -34,8 +33,8 @@ class Complete:
 
         return data
 
-
 class dataQM9:
+    
     def __init__(self, target=0):
         self.path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'QM9')
         self.target = target
@@ -49,6 +48,7 @@ class dataQM9:
         self.get_data()
         
     def get_data(self):
+        
         dataset = QM9(self.path, transform=self.transform).shuffle()
 
         # Normalize targets to mean = 0 and std = 1.
@@ -62,9 +62,9 @@ class dataQM9:
         test_dataset = dataset[:10000]
         val_dataset = dataset[10000:20000]
         train_dataset = dataset[20000:]
-        test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
-        val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
-        train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=8)
+        val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=8)
+        train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=8)
 
         self.train_loader = train_loader
         self.val_loader = val_loader

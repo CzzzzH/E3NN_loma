@@ -6,3 +6,5 @@ numpy==1.23.5
 yapf==0.40.1
 torch==2.3.0
 torchvision==0.18.0
+torch_geometric==2.5.3
+teensorboard==2.16.2

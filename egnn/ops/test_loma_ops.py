@@ -237,5 +237,5 @@ class TestLomaOperators(unittest.TestCase):
         assert torch.allclose(grad_y_mse, grad_y_ref_mse)
         
 if __name__ == '__main__':
-    unittest.main()
     
+    unittest.main()
