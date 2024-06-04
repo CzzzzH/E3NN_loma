@@ -45,8 +45,9 @@ class dataQM9:
                 data.y = data.y[:, target]  # Specify target.
                 return data
         self.transform = T.Compose([MyTransform(), Complete(), T.Distance(norm=False)])
+        self.target = target
         self.get_data()
-
+        
     def get_data(self):
         dataset = QM9(self.path, transform=self.transform).shuffle()
 
@@ -54,7 +55,8 @@ class dataQM9:
         mean = dataset.data.y.mean(dim=0, keepdim=True)
         std = dataset.data.y.std(dim=0, keepdim=True)
         dataset.data.y = (dataset.data.y - mean) / std
-        mean, std = mean[:, target].item(), std[:, target].item()
+        mean, std = mean[:, self.target].item(), std[:, self.target].item()
+        self.mean, self.std = mean, std
 
         # Split datasets.
         test_dataset = dataset[:10000]
@@ -67,6 +69,7 @@ class dataQM9:
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.test_loader = test_loader
+        self.num_features = dataset.num_features
 
     
 # data.x, input node features, shape = [num_nodes, num_node_features]
