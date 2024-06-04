@@ -319,6 +319,20 @@ def test_call_stmt():
                                   output_filename = '_code/call_stmt')
     assert lib.call_stmt() == 5
 
+def test_parallel_sqrt():
+    with open('loma_code/parallel_sqrt.py') as f:
+        structs, lib = compiler.compile(f.read(),
+                                        target = 'ispc',
+                                        output_filename = '_code/parallel_sqrt')
+    py_x = [1, 4, 9]
+    x = (ctypes.c_float * len(py_x))(*py_x)
+    py_y = [0, 0, 0]
+    y = (ctypes.c_float * len(py_y))(*py_y)
+    lib.parallel_sqrt(x, y, len(py_y))
+    assert abs(y[0] - math.sqrt(1)) < 1e-6
+    assert abs(y[1] - math.sqrt(4)) < 1e-6
+    assert abs(y[2] - math.sqrt(9)) < 1e-6
+
 def test_parallel_add():
     with open('loma_code/parallel_add.py') as f:
         structs, lib = compiler.compile(f.read(),
@@ -650,6 +664,7 @@ if __name__ == '__main__':
     test_pass_by_ref_lhs_struct()
     test_pass_by_ref_array()
     test_call_stmt()
+    test_parallel_sqrt()
     test_parallel_add()
     test_simd_local_func()
     test_atomic_add()
