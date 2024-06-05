@@ -238,7 +238,12 @@ class TestLomaOperators(unittest.TestCase):
         
 if __name__ == '__main__':
     test = TestLomaOperators()
-    test.test_silu()
-    test.test_relu()
-    test.test_sigmoid()
-    test.test_sqrt()
+    # test.test_silu()
+    # test.test_relu()
+    # test.test_sigmoid()
+    # test.test_sqrt()
+    # test.test_add()
+    # test.test_sub()
+    # test.test_multiply()
+    # test.test_divide()
+    test.test_sum()   

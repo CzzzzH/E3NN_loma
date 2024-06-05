@@ -124,16 +124,19 @@ class Reduce(Module):
             cl_utils.cl_check(status.value)
             input_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(input_ctype), ctypes.byref(input_ctype), ctypes.byref(status))
             output_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(output_ctype), None, ctypes.byref(status))
-            getattr(self.lib, self.func_name)(input_cl, output_cl, num_threads)
+            num_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(num_features_ctype), ctypes.byref(num_features_ctype), ctypes.byref(status))
+            getattr(self.lib, self.func_name)(input_cl, output_cl, num_features_cl, num_threads)
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, output_cl, cl.CL_TRUE, 0, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), 0, None, None)
+            output = build_tensor(output_ctype, bs)
+            return output, (input_cl, bs, num_features, num_threads)
         else:
             getattr(self.lib, self.func_name)(input_ctype, output_ctype, num_features_ctype, num_threads)
-        output = build_tensor(output_ctype, bs)
-        return output, (input_ctype, bs, num_features, num_threads)
+            output = build_tensor(output_ctype, bs)
+            return output, (input_ctype, bs, num_features, num_threads)
 
     def backward(self, grad_output, *input_ctx):
-        input_ctype, bs, num_features, num_threads = input_ctx
+        input_tensor, bs, num_features, num_threads = input_ctx
         output_ctype = build_ctypes(grad_output, bs)
         grad_input_ctype = (ctypes.c_float * (bs * num_features))(0)
         num_features_ctype = (ctypes.c_int * 1)(num_features)
@@ -143,11 +146,13 @@ class Reduce(Module):
             cl_utils.cl_check(status.value)
             grad_output_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), ctypes.byref(status))
             grad_input_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_input_ctype), None, ctypes.byref(status))
-            getattr(self.lib, f'grad_{self.func_name}')(input_ctype, grad_input_cl, grad_output_cl, num_features, ctypes.c_int(0), num_threads)
+            num_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(num_features_ctype), ctypes.byref(num_features_ctype), ctypes.byref(status))
+            grad_num_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_num_features_ctype), None, ctypes.byref(status))
+            getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_cl, grad_output_cl, num_features_cl, grad_num_features_cl, num_threads)
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_input_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_input_ctype), ctypes.byref(grad_input_ctype), 0, None, None)
         else:
-            getattr(self.lib, f'grad_{self.func_name}')(input_ctype, grad_input_ctype, output_ctype, num_features_ctype, grad_num_features_ctype, num_threads)
+            getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_ctype, output_ctype, num_features_ctype, grad_num_features_ctype, num_threads)
         grad_input = build_tensor(grad_input_ctype, (bs, num_features))
         return grad_input
 
@@ -185,7 +190,9 @@ class BinaryModule(Module):
 
     def __init__(self, *args):
         super().__init__(*args)
-        func_name, _, _ = args
+        func_name, _, target = args
+        self.func_name = func_name
+        self.target = target
         
     def forward(self, x, y):
 
@@ -194,17 +201,40 @@ class BinaryModule(Module):
         x_ctype = build_ctypes(x, bs * num_features) 
         y_ctype = build_ctypes(y, bs * num_features)
         output_ctype = (ctypes.c_float * (bs * num_features))(0)
-        getattr(self.lib, self.func_name)(x_ctype, y_ctype, output_ctype, num_threads)
-        output = build_tensor(output_ctype, (bs, num_features))
-        return output, (x_ctype, y_ctype, bs, num_features, num_threads)
+        if self.target == 'opencl':
+            status = ctypes.c_int32()
+            cl_utils.cl_check(status.value)
+            x_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(x_ctype), ctypes.byref(x_ctype), ctypes.byref(status))
+            y_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(y_ctype), ctypes.byref(y_ctype), ctypes.byref(status))
+            output_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(output_ctype), None, ctypes.byref(status))
+            getattr(self.lib, self.func_name)(x_cl, y_cl, output_cl, num_threads)
+            cl.clFinish(self.cl_cmd_queue)
+            cl.clEnqueueReadBuffer(self.cl_cmd_queue, output_cl, cl.CL_TRUE, 0, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), 0, None, None)
+            output = build_tensor(output_ctype, (bs, num_features))
+            return output, (x_cl, y_cl, bs, num_features, num_threads)
+        else:
+            getattr(self.lib, self.func_name)(x_ctype, y_ctype, output_ctype, num_threads)
+            output = build_tensor(output_ctype, (bs, num_features))
+            return output, (x_ctype, y_ctype, bs, num_features, num_threads)
 
     def backward(self, grad_output, *input_ctx):
 
-        x_ctype, y_ctype, bs, num_features, num_threads = input_ctx
+        x_tensor, y_tensor, bs, num_features, num_threads = input_ctx
         output_ctype = build_ctypes(grad_output, bs * num_features)
         grad_x_ctype = (ctypes.c_float * (bs * num_features))(0)
         grad_y_ctype = (ctypes.c_float * (bs * num_features))(0)
-        getattr(self.lib, f'grad_{self.func_name}')(x_ctype, grad_x_ctype, y_ctype, grad_y_ctype, output_ctype, num_threads)
+        if self.target == 'opencl':
+            status = ctypes.c_int32()
+            cl_utils.cl_check(status.value)
+            grad_output_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), ctypes.byref(status))
+            grad_x_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_x_ctype), None, ctypes.byref(status))
+            grad_y_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_y_ctype), None, ctypes.byref(status))
+            getattr(self.lib, f'grad_{self.func_name}')(x_tensor, grad_x_cl, y_tensor, grad_y_cl, grad_output_cl, num_threads)
+            cl.clFinish(self.cl_cmd_queue)
+            cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_x_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_x_ctype), ctypes.byref(grad_x_ctype), 0, None, None)
+            cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_y_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_y_ctype), ctypes.byref(grad_y_ctype), 0, None, None)
+        else:
+            getattr(self.lib, f'grad_{self.func_name}')(x_tensor, grad_x_ctype, y_tensor, grad_y_ctype, output_ctype, num_threads)
         grad_x = build_tensor(grad_x_ctype, (bs, num_features))
         grad_y = build_tensor(grad_y_ctype, (bs, num_features))
         return grad_x, grad_y
