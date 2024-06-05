@@ -74,7 +74,7 @@ def test(loader):
 
     for data in loader:
         data = data.to(device)
-        error += (model(data) * loader.std - data.y * loader.std).abs().sum().item()  # MAE
+        error += (model(data) * dataset.std - data.y * dataset.std).abs().sum().item()  # MAE
     return error / len(loader.dataset)
 
 
