@@ -274,22 +274,25 @@ class MSELoss(BinaryModule):
         num_features_ctype = (ctypes.c_int * 1)(num_features)
         output_ctype = (ctypes.c_float * 1)(0)
         if self.target == 'opencl':
-            status = ctypes.c_float()
+            status = ctypes.c_int32()
             cl_utils.cl_check(status.value)
             x_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(x_ctype), ctypes.byref(x_ctype), ctypes.byref(status))
             y_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(y_ctype), ctypes.byref(y_ctype), ctypes.byref(status))
             output_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(output_ctype), None, ctypes.byref(status))
-            getattr(self.lib, self.func_name)(x_cl, y_cl, output_cl, num_features, num_threads)
+            bs_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(bs_ctype), ctypes.byref(bs_ctype), ctypes.byref(status))
+            num_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(num_features_ctype), ctypes.byref(num_features_ctype), ctypes.byref(status))
+            getattr(self.lib, self.func_name)(x_cl, y_cl, output_cl, bs_cl, num_features_cl, num_threads)
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, output_cl, cl.CL_TRUE, 0, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), 0, None, None)
+            output = build_tensor(output_ctype, [])
+            return output, (x_cl, y_cl, bs, num_features, num_threads)
         else:
             getattr(self.lib, self.func_name)(x_ctype, y_ctype, output_ctype, bs_ctype, num_features_ctype, num_threads)
-        output = build_tensor(output_ctype, [])
-        return output, (x_ctype, y_ctype, bs, num_features, num_threads)
+            output = build_tensor(output_ctype, [])
+            return output, (x_ctype, y_ctype, bs, num_features, num_threads)
 
     def backward(self, grad_output, *input_ctx):
-
-        x_ctype, y_ctype, bs, num_features, num_threads = input_ctx
+        x_tensor, y_tensor, bs, num_features, num_threads = input_ctx
         output_ctype = build_ctypes(grad_output, 1)
         grad_x_ctype = (ctypes.c_float * (bs * num_features))(0)
         grad_y_ctype = (ctypes.c_float * (bs * num_features))(0)
@@ -298,17 +301,21 @@ class MSELoss(BinaryModule):
         num_features_ctype = (ctypes.c_int * 1)(num_features)
         grad_num_features_ctype = (ctypes.c_int * 1)(0)
         if self.target == 'opencl':
-            status = ctypes.c_float()
+            status = ctypes.c_int32()
             cl_utils.cl_check(status.value)
             grad_output_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), ctypes.byref(status))
             grad_x_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_x_ctype), None, ctypes.byref(status))
             grad_y_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_y_ctype), None, ctypes.byref(status))
-            getattr(self.lib, f'grad_{self.func_name}')(x_ctype, grad_x_cl, y_ctype, grad_y_cl, grad_output_cl, bs, ctypes.c_int(0), num_features, ctypes.c_int(0), num_threads)
+            bs_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(bs_ctype), ctypes.byref(bs_ctype), ctypes.byref(status))
+            grad_bs_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_bs_ctype), None, ctypes.byref(status))
+            num_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(num_features_ctype), ctypes.byref(num_features_ctype), ctypes.byref(status))
+            grad_num_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_num_features_ctype), None, ctypes.byref(status))
+            getattr(self.lib, f'grad_{self.func_name}')(x_tensor, grad_x_cl, y_tensor, grad_y_cl, grad_output_cl, bs_cl, grad_bs_cl, num_features_cl, grad_num_features_cl, num_threads)
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_x_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_x_ctype), ctypes.byref(grad_x_ctype), 0, None, None)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_y_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_y_ctype), ctypes.byref(grad_y_ctype), 0, None, None)
         else:
-            getattr(self.lib, f'grad_{self.func_name}')(x_ctype, grad_x_ctype, y_ctype, grad_y_ctype, output_ctype, bs_ctype, grad_bs_ctype, 
+            getattr(self.lib, f'grad_{self.func_name}')(x_tensor, grad_x_ctype, y_tensor, grad_y_ctype, output_ctype, bs_ctype, grad_bs_ctype, 
                                                         num_features_ctype, grad_num_features_ctype, num_threads)
         grad_x = build_tensor(grad_x_ctype, (bs, num_features))
         grad_y = build_tensor(grad_y_ctype, (bs, num_features))
@@ -331,23 +338,27 @@ class Linear(Module):
         input_features_ctype = (ctypes.c_int * 1)(in_features)
         output_features_ctype = (ctypes.c_int * 1)(out_features)
         if self.target == 'opencl':
-            status = ctypes.c_float()
+            status = ctypes.c_int32()
             cl_utils.cl_check(status.value)
             input_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(input_ctype), ctypes.byref(input_ctype), ctypes.byref(status))
             weight_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(weight_ctype), ctypes.byref(weight_ctype), ctypes.byref(status))
             bias_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(bias_ctype), ctypes.byref(bias_ctype), ctypes.byref(status))
             output_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(output_ctype), None, ctypes.byref(status))
-            getattr(self.lib, self.func_name)(input_cl, weight_cl, bias_cl, output_cl, input_features_ctype, output_features_ctype, num_threads)
+            input_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(input_features_ctype), ctypes.byref(input_features_ctype), ctypes.byref(status))
+            output_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(output_features_ctype), ctypes.byref(output_features_ctype), ctypes.byref(status))
+            getattr(self.lib, self.func_name)(input_cl, weight_cl, bias_cl, output_cl, input_features_cl, output_features_cl, num_threads)
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, output_cl, cl.CL_TRUE, 0, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), 0, None, None)
+            output = build_tensor(output_ctype, (bs, out_features))
+            return output, (input_cl, weight_cl, bias_cl, bs, in_features, out_features, num_threads)
         else:
-            getattr(self.lib, self.func_name)(input_ctype, weight_ctype, bias_ctype, output_ctype, input_features_ctype, output_features_ctype, num_threads)
-        output = build_tensor(output_ctype, (bs, out_features))
-        return output, (input_ctype, weight_ctype, bias_ctype, bs, in_features, out_features, num_threads)
+            getattr(self.lib, self.func_name)(input_ctype, weight_ctype, bias_ctype, output_ctype, input_features_cl, output_features_cl, num_threads)
+            output = build_tensor(output_ctype, (bs, out_features))
+            return output, (input_ctype, weight_ctype, bias_ctype, bs, in_features, out_features, num_threads)
 
     def backward(self, grad_output, *input_ctx):
 
-        input_ctype, weight_ctype, bias_ctype, bs, in_features, out_features, num_threads = input_ctx
+        input_tensor, weight_tensor, bias_tensor, bs, in_features, out_features, num_threads = input_ctx
         grad_input_ctype = (ctypes.c_float * (bs * in_features))(0)
         grad_weight_ctype = (ctypes.c_float * (out_features * in_features))(0)
         grad_bias_ctype = (ctypes.c_float * (out_features))(0)
@@ -357,20 +368,24 @@ class Linear(Module):
         out_features_ctype = (ctypes.c_int * 1)(out_features)
         grad_out_features_ctype = (ctypes.c_int * 1)(0)
         if self.target == 'opencl':
-            status = ctypes.c_float()
+            status = ctypes.c_int32()
             cl_utils.cl_check(status.value)
             grad_output_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), ctypes.byref(status))
             grad_input_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_input_ctype), None, ctypes.byref(status))
             grad_weight_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_weight_ctype), None, ctypes.byref(status))
             grad_bias_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_bias_ctype), None, ctypes.byref(status))
-            getattr(self.lib, f'grad_{self.func_name}')(input_ctype, grad_input_cl, weight_ctype, grad_weight_cl, bias_ctype, grad_bias_cl, grad_output_cl, in_features, out_features, ctypes.c_int(0), num_threads)
+            in_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(in_features_ctype), ctypes.byref(in_features_ctype), ctypes.byref(status))
+            grad_in_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_in_features_ctype), None, ctypes.byref(status))
+            out_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(out_features_ctype), ctypes.byref(out_features_ctype), ctypes.byref(status))
+            grad_out_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_out_features_ctype), None, ctypes.byref(status))
+            getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_cl, weight_tensor, grad_weight_cl, bias_tensor, grad_bias_cl, grad_output_cl, in_features_cl, grad_in_features_cl, out_features_cl, grad_out_features_cl, num_threads)
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_input_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_input_ctype), ctypes.byref(grad_input_ctype), 0, None, None)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_weight_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_weight_ctype), ctypes.byref(grad_weight_ctype), 0, None, None)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_bias_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_bias_ctype), ctypes.byref(grad_bias_ctype), 0, None, None)
         else:
-            getattr(self.lib, f'grad_{self.func_name}')(input_ctype, grad_input_ctype, weight_ctype, grad_weight_ctype, 
-                bias_ctype, grad_bias_ctype, output_ctype, in_features_ctype, grad_in_features_ctype, out_features_ctype, grad_out_features_ctype, 
+            getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_ctype, weight_tensor, grad_weight_ctype, 
+                bias_tensor, grad_bias_ctype, output_ctype, in_features_ctype, grad_in_features_ctype, out_features_ctype, grad_out_features_ctype, 
                 num_threads)
         grad_input = build_tensor(grad_input_ctype, (bs, in_features))
         grad_weight = build_tensor(grad_weight_ctype, (out_features, in_features))
