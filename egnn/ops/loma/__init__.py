@@ -10,8 +10,8 @@ import gpuctypes.opencl as cl
 from ctypes import CDLL
 from .utils import *
 
-
-TARGET = 'opencl'
+TARGET = 'ispc'
+# TARGET = 'opencl'
 
 class Module:
     
@@ -327,7 +327,7 @@ class Linear(Module):
         super().__init__('linear_', lib_name, target)
     
     def forward(self, input, weight, bias):
-
+        
         bs, in_features = input.shape
         out_features = weight.shape[0]
         num_threads = bs * out_features

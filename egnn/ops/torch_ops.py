@@ -4,6 +4,54 @@ import math
 from torch.nn import init
 from . import *
 
+class LomaAddFunction(torch.autograd.Function):
+    
+    @staticmethod
+    def forward(ctx, input1, input2):
+        outputs, input_ctx = loma_add_.forward(input1, input2)
+        ctx.input_ctx = input_ctx
+        return outputs
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return loma_add_.backward(grad_output.contiguous(), *ctx.input_ctx)
+    
+class LomaSubFunction(torch.autograd.Function):
+    
+    @staticmethod
+    def forward(ctx, input1, input2):
+        outputs, input_ctx = loma_sub_.forward(input1, input2)
+        ctx.input_ctx = input_ctx
+        return outputs
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return loma_sub_.backward(grad_output.contiguous(), *ctx.input_ctx)
+    
+class LomaMulFunction(torch.autograd.Function):
+    
+    @staticmethod
+    def forward(ctx, input1, input2):
+        outputs, input_ctx = loma_mul_.forward(input1, input2)
+        ctx.input_ctx = input_ctx
+        return outputs
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return loma_mul_.backward(grad_output.contiguous(), *ctx.input_ctx)
+    
+class LomaDivFunction(torch.autograd.Function):
+    
+    @staticmethod
+    def forward(ctx, input1, input2):
+        outputs, input_ctx = loma_div_.forward(input1, input2)
+        ctx.input_ctx = input_ctx
+        return outputs
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return loma_div_.backward(grad_output.contiguous(), *ctx.input_ctx)
+
 class LomaLinearFunction(torch.autograd.Function):
     
     @staticmethod
@@ -43,6 +91,38 @@ class LomaMSELossFunction(torch.autograd.Function):
         outputs = loma_mse_.backward(grad_output.contiguous(), *ctx.input_ctx)
         d_x, d_y = outputs
         return d_x, d_y
+    
+class LomaAdd(torch.nn.Module):
+    
+    def __init__(self):
+        super(LomaAdd, self).__init__()
+        
+    def forward(self, input1, input2):
+        return LomaAddFunction.apply(input1, input2)
+
+class LomaSub(torch.nn.Module):
+    
+    def __init__(self):
+        super(LomaSub, self).__init__()
+        
+    def forward(self, input1, input2):
+        return LomaSubFunction.apply(input1, input2)
+    
+class LomaMul(torch.nn.Module):
+    
+    def __init__(self):
+        super(LomaMul, self).__init__()
+        
+    def forward(self, input1, input2):
+        return LomaMulFunction.apply(input1, input2)
+    
+class LomaDiv(torch.nn.Module):
+    
+    def __init__(self):
+        super(LomaDiv, self).__init__()
+        
+    def forward(self, input1, input2):
+        return LomaDivFunction.apply(input1, input2)
 
 class LomaLinear(torch.nn.Module):
 

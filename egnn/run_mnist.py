@@ -7,9 +7,6 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
-from models.MLP import MLP, MLPRef
-from ops.torch_ops import LomaMSELoss
-
 torch.manual_seed(233)
 
 parser = argparse.ArgumentParser()
@@ -84,10 +81,15 @@ if __name__ == '__main__':
         break
     
     if args.backend == "loma":
-        model = MLP()
+        print("Using loma backend")
+        from models import MLP_loma
+        from ops.torch_ops import LomaMSELoss
+        model = MLP_loma.MLP()
         loss_fn = LomaMSELoss()
     else:
-        model = MLPRef()
+        print("Using torch backend")
+        from models import MLP_torch
+        model = MLP_torch.MLP()
         loss_fn = nn.MSELoss()
 
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)

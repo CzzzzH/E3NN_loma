@@ -1,22 +1,7 @@
-import copy
-import os.path as osp
-
 import torch
 import torch.nn.functional as F
-from torch.nn import GRU, Linear, ReLU, Sequential
 
-import torch_geometric.transforms as T
-from torch_geometric.datasets import QM9
-from torch_geometric.loader import DataLoader
-from torch_geometric.nn import NNConv, Set2Set, aggr
-from torch_geometric.utils import remove_self_loops
-from dataloader.qm9 import dataQM9
-
-
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from torch import nn
 from torch_geometric.nn import Set2Set
 
 class EGNNLayer(nn.Module):
@@ -58,9 +43,9 @@ class EGNNLayer(nn.Module):
         
         return node_features, pos
 
-class Net(nn.Module):
+class EGNN(nn.Module):
     def __init__(self, dataset, dim):
-        super(Net, self).__init__()
+        super(EGNN, self).__init__()
         self.lin0 = nn.Linear(dataset.num_features, dim)
         self.egnn1 = EGNNLayer(dim, dim)
         self.egnn2 = EGNNLayer(dim, dim)
@@ -81,52 +66,3 @@ class Net(nn.Module):
         x = F.relu(self.lin1(x))
         x = self.lin2(x)
         return x.view(-1)
-
-target = 0
-dim = 64
-dataset = dataQM9(target=target)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = Net(dataset, dim).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
-                                                       factor=0.7, patience=5,
-                                                       min_lr=0.00001)
-
-
-def train(epoch):
-    model.train()
-    loss_all = 0
-
-    for data in dataset.train_loader:
-        data = data.to(device)
-        optimizer.zero_grad()
-        loss = F.mse_loss(model(data), data.y)
-        loss.backward()
-        loss_all += loss.item() * data.num_graphs
-        optimizer.step()
-    return loss_all / len(dataset.train_loader.dataset)
-
-
-def test(loader):
-    model.eval()
-    error = 0
-
-    for data in loader:
-        data = data.to(device)
-        error += (model(data) * dataset.std - data.y * dataset.std).abs().sum().item()  # MAE
-    return error / len(loader.dataset)
-
-
-best_val_error = None
-for epoch in range(1, 301):
-    lr = scheduler.optimizer.param_groups[0]['lr']
-    loss = train(epoch)
-    val_error = test(dataset.val_loader)
-    scheduler.step(val_error)
-
-    if best_val_error is None or val_error <= best_val_error:
-        test_error = test(dataset.test_loader)
-        best_val_error = val_error
-
-    print(f'Epoch: {epoch:03d}, LR: {lr:7f}, Loss: {loss:.7f}, '
-          f'Val MAE: {val_error:.7f}, Test MAE: {test_error:.7f}')
