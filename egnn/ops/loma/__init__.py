@@ -10,8 +10,8 @@ import gpuctypes.opencl as cl
 from ctypes import CDLL
 from .utils import *
 
-TARGET = 'ispc'
-# TARGET = 'opencl'
+# TARGET = 'ispc'
+TARGET = 'opencl'
 
 class Module:
     
