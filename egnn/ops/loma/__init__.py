@@ -12,45 +12,49 @@ from .utils import *
 
 # TARGET = 'ispc'
 TARGET = 'opencl'
+LIB_NAME = 'ops'
+DEBUG = False
+
+if TARGET == 'ispc':
+    if os.path.exists(f'{current}/_code/{LIB_NAME}.so'):
+        lib = CDLL(f'{current}/_code/{LIB_NAME}.so')
+    else:
+        with open(f'{current}/loma_code/{LIB_NAME}.py') as f:
+            _, lib = compiler.compile(f.read(),
+                                    target = 'ispc',
+                                    output_filename = f'{current}/_code/{LIB_NAME}')
+elif TARGET == 'c':
+    if os.path.exists(f'{current}/_code/{LIB_NAME}.so'):
+        lib = CDLL(f'{current}/_code/{LIB_NAME}.so')
+    else:
+        with open(f'{current}/loma_code/{LIB_NAME}.py') as f:
+            _, lib = compiler.compile(f.read(),
+                                    target = 'c',
+                                    output_filename = f'{current}/_code/{LIB_NAME}')
+elif TARGET == 'opencl':
+    cl_ctx, cl_device, cl_cmd_queue = cl_utils.create_context()
+    with open(f'{current}/loma_code/{LIB_NAME}.py') as f:
+        _, lib = compiler.compile(f.read(),
+                                target = 'opencl',
+                                opencl_context = cl_ctx,
+                                opencl_device = cl_device,
+                                opencl_command_queue = cl_cmd_queue)
+else:
+    raise ValueError('target should be either "c" or "ispc" or "opencl"')
 
 class Module:
     
     def __init__(self, *args):
         
-        func_name, lib_name, target = args
+        func_name, target = args
         self.func_name = func_name
+        self.lib = lib
         self.target = target
-
-        if target == 'ispc':
-            if os.path.exists(f'{current}/_code/{lib_name}.so'):
-                self.lib = CDLL(f'{current}/_code/{lib_name}.so')
-            else:
-                with open(f'{current}/loma_code/{lib_name}.py') as f:
-                    _, self.lib = compiler.compile(f.read(),
-                                            target = 'ispc',
-                                            output_filename = f'{current}/_code/{lib_name}')
-        elif target == 'c':
-            if os.path.exists(f'{current}/_code/{lib_name}.so'):
-                self.lib = CDLL(f'{current}/_code/{lib_name}.so')
-            else:
-                with open(f'{current}/loma_code/{lib_name}.py') as f:
-                    _, self.lib = compiler.compile(f.read(),
-                                            target = 'c',
-                                            output_filename = f'{current}/_code/{lib_name}')
-        elif target == 'opencl':
-            cl_ctx, cl_device, cl_cmd_queue = cl_utils.create_context()
-            with open(f'{current}/loma_code/{lib_name}.py') as f:
-                _, self.lib = compiler.compile(f.read(),
-                                        target = 'opencl',
-                                        opencl_context = cl_ctx,
-                                        opencl_device = cl_device,
-                                        opencl_command_queue = cl_cmd_queue)
+        if target == 'opencl':
             self.cl_ctx = cl_ctx
             self.cl_device = cl_device
             self.cl_cmd_queue = cl_cmd_queue
-        else:
-            raise ValueError('target should be either "c" or "ispc" or "opencl"')
-
+        
     def forward(self, *args):
         raise NotImplementedError('forward method is not implemented')
 
@@ -64,8 +68,6 @@ class UnaryModule(Module):
 
     def __init__(self, *args):
         super().__init__(*args)
-        func_name, _, target = args
-        self.target = target
         
     def forward(self, input):
         bs, num_features = input.shape
@@ -109,9 +111,6 @@ class UnaryModule(Module):
 class Reduce(Module):
     def __init__(self, *args):
         super().__init__(*args)
-        func_name, _, target = args
-        self.func_name = func_name
-        self.target = target
         
     def forward(self, input):
         bs, num_features = input.shape
@@ -158,41 +157,38 @@ class Reduce(Module):
 
 class Sqrt(UnaryModule):
     
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('sqrt_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('sqrt_', target)
 
 class Sum(Reduce):
     
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('sum_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('sum_', target)
 
 class Mean(Reduce):
     
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('mean_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('mean_', target)
 
 class ReLU(UnaryModule):
 
-    def __init__(self, lib_name='ops', target=TARGET):\
-        super().__init__('relu_', lib_name, target)
+    def __init__(self, target=TARGET):\
+        super().__init__('relu_', target)
     
 class SiLU(UnaryModule):
 
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('silu_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('silu_', target)
 
 class Sigmoid(UnaryModule):
     
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('sigmoid_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('sigmoid_', target)
 
 class BinaryModule(Module):
 
     def __init__(self, *args):
         super().__init__(*args)
-        func_name, _, target = args
-        self.func_name = func_name
-        self.target = target
         
     def forward(self, x, y):
 
@@ -241,28 +237,28 @@ class BinaryModule(Module):
     
 class Add(BinaryModule):
 
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('add_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('add_', target)
 
 class Sub(BinaryModule):
     
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('sub_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('sub_',  target)
         
 class Mul(BinaryModule):
     
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('multiply_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('multiply_', target)
 
 class Div(BinaryModule):
     
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('divide_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('divide_', target)
 
 class MSELoss(BinaryModule):
     
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('mse_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('mse_', target)
         
     def forward(self, x, y):
 
@@ -323,10 +319,15 @@ class MSELoss(BinaryModule):
 
 class Linear(Module):
     
-    def __init__(self, lib_name='ops', target=TARGET):
-        super().__init__('linear_', lib_name, target)
+    def __init__(self, target=TARGET):
+        super().__init__('linear_', target)
     
     def forward(self, input, weight, bias):
+        
+        # Check time
+        if DEBUG:
+            import time
+            start = time.time()
         
         bs, in_features = input.shape
         out_features = weight.shape[0]
@@ -346,17 +347,26 @@ class Linear(Module):
             output_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(output_ctype), None, ctypes.byref(status))
             input_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(input_features_ctype), ctypes.byref(input_features_ctype), ctypes.byref(status))
             output_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(output_features_ctype), ctypes.byref(output_features_ctype), ctypes.byref(status))
+            if DEBUG: print(f"Time to create buffers: {time.time() - start}")
             getattr(self.lib, self.func_name)(input_cl, weight_cl, bias_cl, output_cl, input_features_cl, output_features_cl, num_threads)
+            if DEBUG: print(f"Time to run kernel: {time.time() - start}")
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, output_cl, cl.CL_TRUE, 0, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), 0, None, None)
             output = build_tensor(output_ctype, (bs, out_features))
+            if DEBUG: print(f"Time to output: {time.time() - start}\n")
             return output, (input_cl, weight_cl, bias_cl, bs, in_features, out_features, num_threads)
         else:
-            getattr(self.lib, self.func_name)(input_ctype, weight_ctype, bias_ctype, output_ctype, input_features_cl, output_features_cl, num_threads)
+            if DEBUG: print(f"Time to create buffers: {time.time() - start}")
+            getattr(self.lib, self.func_name)(input_ctype, weight_ctype, bias_ctype, output_ctype, input_features_ctype, output_features_ctype, num_threads)
+            if DEBUG: print(f"Time to run kernel: {time.time() - start}")
             output = build_tensor(output_ctype, (bs, out_features))
+            if DEBUG: print(f"Time to output: {time.time() - start}\n")
             return output, (input_ctype, weight_ctype, bias_ctype, bs, in_features, out_features, num_threads)
 
     def backward(self, grad_output, *input_ctx):
+
+        import time
+        start = time.time()
 
         input_tensor, weight_tensor, bias_tensor, bs, in_features, out_features, num_threads = input_ctx
         grad_input_ctype = (ctypes.c_float * (bs * in_features))(0)
@@ -378,16 +388,21 @@ class Linear(Module):
             grad_in_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_in_features_ctype), None, ctypes.byref(status))
             out_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(out_features_ctype), ctypes.byref(out_features_ctype), ctypes.byref(status))
             grad_out_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_out_features_ctype), None, ctypes.byref(status))
+            if DEBUG: print(f"Time to create buffers (backward): {time.time() - start}")
             getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_cl, weight_tensor, grad_weight_cl, bias_tensor, grad_bias_cl, grad_output_cl, in_features_cl, grad_in_features_cl, out_features_cl, grad_out_features_cl, num_threads)
+            if DEBUG: print(f"Time to run kernel (backward): {time.time() - start}")
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_input_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_input_ctype), ctypes.byref(grad_input_ctype), 0, None, None)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_weight_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_weight_ctype), ctypes.byref(grad_weight_ctype), 0, None, None)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_bias_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_bias_ctype), ctypes.byref(grad_bias_ctype), 0, None, None)
         else:
+            if DEBUG: print(f"Time to create buffers (backward): {time.time() - start}")
             getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_ctype, weight_tensor, grad_weight_ctype, 
                 bias_tensor, grad_bias_ctype, output_ctype, in_features_ctype, grad_in_features_ctype, out_features_ctype, grad_out_features_ctype, 
                 num_threads)
+            if DEBUG: print(f"Time to run kernel (backward): {time.time() - start}")
         grad_input = build_tensor(grad_input_ctype, (bs, in_features))
         grad_weight = build_tensor(grad_weight_ctype, (out_features, in_features))
         grad_bias = build_tensor(grad_bias_ctype, (out_features,))
+        if DEBUG: print(f"Time to output (backward): {time.time() - start}\n")
         return grad_input, grad_weight, grad_bias

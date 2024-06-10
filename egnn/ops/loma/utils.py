@@ -17,7 +17,8 @@ def check_res(a, b, test_name):
     print()
     
 def build_ctypes(tensor, length):
-    return (ctypes.c_float * length)(*(tensor.float().flatten()))
+    np_array = tensor.float().flatten().numpy()
+    return np.ctypeslib.as_ctypes(np_array)
 
 def build_tensor(c_arr, shape):
     res = torch.frombuffer(c_arr, dtype=torch.float32)

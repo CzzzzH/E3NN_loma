@@ -22,10 +22,10 @@ args = parser.parse_args()
 target = args.target
 dim = 64
 dataset = dataQM9(target=target)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 if args.backend == "loma":
     print("Using loma backend")
+    device = 'cpu'
     # TODO: Implement the Loma backend
     from ops.torch_ops import LomaMul, LomaDiv
     mul_op = LomaMul()
@@ -33,6 +33,7 @@ if args.backend == "loma":
     loss_fn = nn.MSELoss()
 else:
     print("Using torch backend")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     from models import EGNN_torch
     model = EGNN_torch.EGNN(dataset, dim).to(device)
     loss_fn = nn.MSELoss()
