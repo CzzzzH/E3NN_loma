@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from torch import nn
-from torch_geometric.nn import Set2Set
+from torch_geometric.nn import aggr
 
 class EGNNLayer(nn.Module):
     def __init__(self, in_features, out_features):
@@ -50,8 +50,8 @@ class EGNN(nn.Module):
         self.egnn1 = EGNNLayer(dim, dim)
         self.egnn2 = EGNNLayer(dim, dim)
         self.egnn3 = EGNNLayer(dim, dim)
-        self.set2set = Set2Set(dim, processing_steps=3)
-        self.lin1 = nn.Linear(2 * dim, dim)
+        self.sum_aggr = aggr.SumAggregation()
+        self.lin1 = nn.Linear(dim, dim)
         self.lin2 = nn.Linear(dim, 1)
 
     def forward(self, data):
@@ -62,7 +62,7 @@ class EGNN(nn.Module):
         x, pos = self.egnn2(x, data.edge_index, data.edge_attr, pos)
         x, pos = self.egnn3(x, data.edge_index, data.edge_attr, pos)
 
-        x = self.set2set(x, data.batch)
+        x = self.sum_aggr(x, data.batch)
         x = F.relu(self.lin1(x))
         x = self.lin2(x)
         return x.view(-1)
