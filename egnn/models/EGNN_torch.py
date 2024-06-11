@@ -23,14 +23,14 @@ class EGNNLayer(nn.Module):
             nn.ReLU(),
             nn.Linear(1, 1)
         )
+        self.sum_aggr = aggr.SumAggregation()
 
     def forward(self, x, edge_index, edge_attr, pos):
         row, col = edge_index
         edge_input = torch.cat([x[row], x[col], edge_attr], dim=1)
         edge_features = self.edge_mlp(edge_input)
-        
-        aggregated_edge_features = torch.zeros_like(x)
-        aggregated_edge_features.index_add_(0, row, edge_features)
+
+        aggregated_edge_features = self.sum_aggr(edge_features, row)
         
         node_input = torch.cat([x, aggregated_edge_features], dim=1)
         node_features = self.node_mlp(node_input)
@@ -38,9 +38,8 @@ class EGNNLayer(nn.Module):
         relative_pos = pos[row] - pos[col]
         coord_updates = self.coord_mlp(edge_features) * relative_pos
         coord_updates = coord_updates.sum(dim=0, keepdim=True)
-        
         pos = pos + coord_updates
-        
+
         return node_features, pos
 
 class EGNN(nn.Module):
