@@ -64,6 +64,20 @@ def mean_(input: In[Array[float]],
 
 grad_mean_ = rev_diff(mean_)
 
+# sum aggregation
+@simd
+def sum_aggr_(input: In[Array[float]],
+          index: In[Array[int]],
+          output: Out[Array[float]],
+          in_features: In[Array[int]]):
+    idx : int = thread_id()
+    batch_idx : int = idx / in_features[0]
+    feature_idx : int = idx - batch_idx * in_features[0]
+    reduce_idx : int = index[batch_idx]
+    atomic_add(output[feature_idx], input[batch_idx * in_features[0] + feature_idx])
+
+grad_sum_aggr_ = rev_diff(sum_aggr_)
+
 @simd
 def linear_(input: In[Array[float]],
             weight: In[Array[float]],

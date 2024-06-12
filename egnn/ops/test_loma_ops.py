@@ -215,6 +215,31 @@ class TestLomaOperators(unittest.TestCase):
         
         assert torch.allclose(output_sigmoid, output_ref_sigmoid)
         assert torch.allclose(grad_input_sigmoid, grad_input_ref_sigmoid)
+
+    def test_sum_aggr(self):
+
+        loma_sum_aggr = loma.SumAggr()
+        input_sum_aggr = torch.rand(10, 4, requires_grad=True)
+        index = torch.randint(0, 4, (10,))
+        # sort the index
+        index = index.sort()[0]
+
+        # Forward
+        output_sum_aggr, input_ctx = loma_sum_aggr(input_sum_aggr, index)
+        output_ref_sum_aggr = torch.zeros(4, 4)
+        # use index_add_ to sum the values
+        output_ref_sum_aggr.index_add_(0, index, input_sum_aggr)
+
+        print(output_sum_aggr)
+        print(output_ref_sum_aggr)
+        
+        # Backward
+        output_ref_sum_aggr.backward(output_ref_sum_aggr)
+        grad_input_sum_aggr = loma_sum_aggr.backward(output_sum_aggr, *input_ctx)
+        grad_input_ref_sum_aggr = input_sum_aggr.grad
+        
+        assert torch.allclose(output_sum_aggr, output_ref_sum_aggr)
+        assert torch.allclose(grad_input_sum_aggr, grad_input_ref_sum_aggr)
     
     def test_mse(self):
         
@@ -239,4 +264,4 @@ class TestLomaOperators(unittest.TestCase):
         
 if __name__ == '__main__':
     test = TestLomaOperators()
-    test.test_sum()
+    test.test_sum_aggr()
