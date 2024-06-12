@@ -74,7 +74,7 @@ def sum_aggr_(input: In[Array[float]],
     batch_idx : int = idx / in_features[0]
     feature_idx : int = idx - batch_idx * in_features[0]
     reduce_idx : int = index[batch_idx]
-    atomic_add(output[feature_idx], input[batch_idx * in_features[0] + feature_idx])
+    atomic_add(output[reduce_idx * in_features[0] + feature_idx], input[idx])
 
 grad_sum_aggr_ = rev_diff(sum_aggr_)
 

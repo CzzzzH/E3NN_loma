@@ -204,11 +204,11 @@ class SumAggr(Module):
             grad_index_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_index_ctype), None, ctypes.byref(status))
             num_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR, ctypes.sizeof(num_features_ctype), ctypes.byref(num_features_ctype), ctypes.byref(status))
             grad_num_features_cl = cl.clCreateBuffer(self.cl_ctx, cl.CL_MEM_WRITE_ONLY, ctypes.sizeof(grad_num_features_ctype), None, ctypes.byref(status))
-            getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_cl, output_cl, index_cl, grad_index_cl, num_features_cl, grad_num_features_cl, num_threads)
+            getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_cl, index_cl, grad_index_cl, output_cl, num_features_cl, grad_num_features_cl, num_threads)
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_input_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_input_ctype), ctypes.byref(grad_input_ctype), 0, None, None)
         else:
-            getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_ctype, output_ctype, index_tensor, grad_index_ctype, num_features_ctype, grad_num_features_ctype, num_threads)
+            getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_ctype, index_tensor, grad_index_ctype, output_ctype, num_features_ctype, grad_num_features_ctype, num_threads)
         grad_input = build_tensor(grad_input_ctype, (bs, num_features))
         return grad_input
 

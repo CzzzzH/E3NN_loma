@@ -223,20 +223,21 @@ class TestLomaOperators(unittest.TestCase):
         index = torch.randint(0, 4, (10,))
         # sort the index
         index = index.sort()[0]
-
         # Forward
+        index = index.int()
         output_sum_aggr, input_ctx = loma_sum_aggr(input_sum_aggr, index)
         output_ref_sum_aggr = torch.zeros(4, 4)
-        # use index_add_ to sum the values
-        output_ref_sum_aggr.index_add_(0, index, input_sum_aggr)
 
-        print(output_sum_aggr)
-        print(output_ref_sum_aggr)
-        
+        # use index_add_ to sum the values
+        output_ref_sum_aggr.index_add_(0, index.to(torch.int64), input_sum_aggr)
+
         # Backward
         output_ref_sum_aggr.backward(output_ref_sum_aggr)
         grad_input_sum_aggr = loma_sum_aggr.backward(output_sum_aggr, *input_ctx)
         grad_input_ref_sum_aggr = input_sum_aggr.grad
+
+        print(grad_input_ref_sum_aggr)
+        print(grad_input_sum_aggr)
         
         assert torch.allclose(output_sum_aggr, output_ref_sum_aggr)
         assert torch.allclose(grad_input_sum_aggr, grad_input_ref_sum_aggr)
