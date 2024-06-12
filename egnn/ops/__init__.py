@@ -7,7 +7,6 @@ import loma
 
 loma_sqrt_ = loma.Sqrt()
 loma_sum_ = loma.Sum()
-loma_mean_ = loma.Mean()
 loma_relu_ = loma.ReLU()
 loma_silu_ = loma.SiLU()
 loma_sigmoid_ = loma.Sigmoid()

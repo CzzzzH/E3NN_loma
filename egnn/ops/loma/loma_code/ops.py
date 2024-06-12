@@ -7,6 +7,18 @@ def add_(x : In[Array[float]],
 
 grad_add_ = rev_diff(add_)
 
+@simd 
+def add_broadcast_(x : In[Array[float]],
+                   y : In[Array[float]],
+                   z : Out[Array[float]],
+                   in_features : In[Array[int]]):
+    idx : int = thread_id()
+    batch_idx : int = idx / in_features[0]
+    feature_idx : int = idx - batch_idx * in_features[0]
+    z[idx] = x[batch_idx * in_features[0] + feature_idx] + y[feature_idx]
+
+grad_add_broadcast_ = rev_diff(add_broadcast_)
+
 @simd
 def sub_(x : In[Array[float]],
          y : In[Array[float]],
@@ -53,16 +65,6 @@ def sum_(input: In[Array[float]],
 
 grad_sum_ = rev_diff(sum_)
 
-# mean dim=0
-@simd
-def mean_(input: In[Array[float]],
-          output: Out[Array[float]],
-          in_features: In[Array[int]]):
-    batch_idx : int = thread_id() / in_features[0]
-    feature_idx : int = thread_id() - batch_idx * in_features[0]
-    atomic_add(output[feature_idx], input[batch_idx * in_features[0] + feature_idx] / int2float(in_features[0]))
-
-grad_mean_ = rev_diff(mean_)
 
 # sum aggregation
 @simd
@@ -77,17 +79,6 @@ def sum_aggr_(input: In[Array[float]],
     atomic_add(output[reduce_idx * in_features[0] + feature_idx], input[idx])
 
 grad_sum_aggr_ = rev_diff(sum_aggr_)
-
-# @simd 
-# def grad_sum_aggr_(grad_output: In[Array[float]],
-#                      index: In[Array[int]],
-#                      grad_input: Out[Array[float]],
-#                      in_features: In[Array[int]]):
-#      idx : int = thread_id()
-#      batch_idx : int = idx / in_features[0]
-#      feature_idx : int = idx - batch_idx * in_features[0]
-#      reduce_idx : int = index[batch_idx]
-#      grad_input[idx] = grad_output[reduce_idx * in_features[0] + feature_idx]
 
 @simd
 def linear_(input: In[Array[float]],

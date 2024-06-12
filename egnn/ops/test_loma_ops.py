@@ -22,6 +22,24 @@ class TestLomaOperators(unittest.TestCase):
         assert torch.allclose(output_add, output_ref_add)
         assert torch.allclose(grad_x_add, grad_x_ref_add)
         assert torch.allclose(grad_y_add, grad_y_ref_add)
+
+    def test_add_broadcast(self):
+
+        loma_add_broadcast = loma.AddBroadcast()
+        x = torch.rand(10, 4, requires_grad=True)
+        y = torch.rand(4, requires_grad=True)
+        # Forward
+        output_add_broadcast, input_ctx = loma_add_broadcast(x, y)
+        output_ref_add_broadcast = x + y
+
+        # Backward
+        output_ref_add_broadcast.backward(output_ref_add_broadcast)
+        grad_x_add_broadcast, grad_y_add_broadcast = loma_add_broadcast.backward(output_add_broadcast, *input_ctx)
+        grad_x_ref_add_broadcast, grad_y_ref_add_broadcast = x.grad, y.grad
+
+        assert torch.allclose(output_add_broadcast, output_ref_add_broadcast)
+        assert torch.allclose(grad_x_add_broadcast, grad_x_ref_add_broadcast)
+        assert torch.allclose(grad_y_add_broadcast, grad_y_ref_add_broadcast)
         
     def test_sub(self):
         
@@ -114,23 +132,6 @@ class TestLomaOperators(unittest.TestCase):
         
         assert torch.allclose(output_sum, output_ref_sum)
         assert torch.allclose(grad_input_sum, grad_input_ref_sum)
-
-    def test_mean(self):
-        
-        loma_mean = loma.Mean()
-        input_mean = torch.rand(4, 10, requires_grad=True)
-        
-        # Forward
-        output_mean, input_ctx = loma_mean(input_mean)
-        output_ref_mean = torch.mean(input_mean, dim = 0)
-        
-        # Backward
-        output_ref_mean.backward(output_ref_mean)
-        grad_input_mean = loma_mean.backward(output_mean, *input_ctx)
-        grad_input_ref_mean = input_mean.grad
-        
-        assert torch.allclose(output_mean, output_ref_mean)
-        assert torch.allclose(grad_input_mean, grad_input_ref_mean)
 
     def test_linear(self):
         
@@ -282,5 +283,4 @@ class TestLomaOperators(unittest.TestCase):
         assert torch.allclose(grad_y_mae, grad_y_ref_mae)
         
 if __name__ == '__main__':
-    test = TestLomaOperators()
-    test.test_mae()
+    unittest.main()
