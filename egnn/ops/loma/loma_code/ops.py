@@ -148,3 +148,17 @@ def mse_(x : In[Array[float]],
         (x[batch_idx * out_features[0] + feature_idx] - y[batch_idx * out_features[0] + feature_idx]) / N)
 
 grad_mse_ = rev_diff(mse_)
+
+@simd 
+def mae_(x : In[Array[float]],
+        y : In[Array[float]],
+        z : Out[Array[float]],
+        batch_size : In[Array[int]],
+        out_features : In[Array[int]]):
+    batch_idx : int = thread_id() / out_features[0]
+    feature_idx : int = thread_id() - batch_idx * out_features[0]
+    N : float = int2float(batch_size[0] * out_features[0])
+    atomic_add(z[0], sqrt((x[batch_idx * out_features[0] + feature_idx] - y[batch_idx * out_features[0] + feature_idx]) * \
+        (x[batch_idx * out_features[0] + feature_idx] - y[batch_idx * out_features[0] + feature_idx])) / N)
+    
+grad_mae_ = rev_diff(mae_)

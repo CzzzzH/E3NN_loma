@@ -259,7 +259,28 @@ class TestLomaOperators(unittest.TestCase):
         assert torch.allclose(output_mse, output_ref_mse)
         assert torch.allclose(grad_x_mse, grad_x_ref_mse)
         assert torch.allclose(grad_y_mse, grad_y_ref_mse)
+
+    def test_mae(self):
+
+        loma_mae = loma.MAELoss()
+        torch_mae = torch.nn.L1Loss()
+
+        x = torch.rand(4, 10, requires_grad=True)
+        y = torch.rand(4, 10, requires_grad=True)
+
+        # Forward
+        output_mae, input_ctx = loma_mae(x, y)
+        output_ref_mae = torch_mae(x, y)
+
+        # Backward
+        output_ref_mae.backward(output_ref_mae)
+        grad_x_mae, grad_y_mae = loma_mae.backward(output_mae, *input_ctx)
+        grad_x_ref_mae, grad_y_ref_mae = x.grad, y.grad
+
+        assert torch.allclose(output_mae, output_ref_mae)
+        assert torch.allclose(grad_x_mae, grad_x_ref_mae)
+        assert torch.allclose(grad_y_mae, grad_y_ref_mae)
         
 if __name__ == '__main__':
     test = TestLomaOperators()
-    test.test_sum_aggr()
+    test.test_mae()
