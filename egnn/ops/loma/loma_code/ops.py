@@ -42,23 +42,25 @@ def sqrt_(input: In[Array[float]],
 
 grad_sqrt_ = rev_diff(sqrt_)
 
+# sum dim=0
 @simd
 def sum_(input: In[Array[float]],
          output: Out[Array[float]],
          in_features: In[Array[int]]):
     batch_idx : int = thread_id() / in_features[0]
     feature_idx : int = thread_id() - batch_idx * in_features[0]
-    atomic_add(output[batch_idx], input[batch_idx * in_features[0] + feature_idx])
+    atomic_add(output[feature_idx], input[batch_idx * in_features[0] + feature_idx])
 
 grad_sum_ = rev_diff(sum_)
 
+# mean dim=0
 @simd
 def mean_(input: In[Array[float]],
           output: Out[Array[float]],
           in_features: In[Array[int]]):
     batch_idx : int = thread_id() / in_features[0]
     feature_idx : int = thread_id() - batch_idx * in_features[0]
-    atomic_add(output[batch_idx], input[batch_idx * in_features[0] + feature_idx] / int2float(in_features[0]))
+    atomic_add(output[feature_idx], input[batch_idx * in_features[0] + feature_idx] / int2float(in_features[0]))
 
 grad_mean_ = rev_diff(mean_)
 

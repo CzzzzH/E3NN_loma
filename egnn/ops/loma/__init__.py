@@ -116,7 +116,7 @@ class Reduce(Module):
         bs, num_features = input.shape
         num_threads = bs * num_features
         input_ctype = build_ctypes(input, bs * num_features) 
-        output_ctype = (ctypes.c_float * (bs))(0)
+        output_ctype = (ctypes.c_float * (num_features))(0)
         num_features_ctype = (ctypes.c_int * 1)(num_features)
         if self.target == 'opencl':
             status = ctypes.c_int32()
@@ -127,16 +127,16 @@ class Reduce(Module):
             getattr(self.lib, self.func_name)(input_cl, output_cl, num_features_cl, num_threads)
             cl.clFinish(self.cl_cmd_queue)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, output_cl, cl.CL_TRUE, 0, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), 0, None, None)
-            output = build_tensor(output_ctype, bs)
+            output = build_tensor(output_ctype, (1, num_features))
             return output, (input_cl, bs, num_features, num_threads)
         else:
             getattr(self.lib, self.func_name)(input_ctype, output_ctype, num_features_ctype, num_threads)
-            output = build_tensor(output_ctype, bs)
+            output = build_tensor(output_ctype, (1, num_features))
             return output, (input_ctype, bs, num_features, num_threads)
 
     def backward(self, grad_output, *input_ctx):
         input_tensor, bs, num_features, num_threads = input_ctx
-        output_ctype = build_ctypes(grad_output, bs)
+        output_ctype = build_ctypes(grad_output, num_features)
         grad_input_ctype = (ctypes.c_float * (bs * num_features))(0)
         num_features_ctype = (ctypes.c_int * 1)(num_features)
         grad_num_features_ctype = (ctypes.c_int * 1)(0)

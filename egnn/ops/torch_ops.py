@@ -92,6 +92,19 @@ class LomaMSELossFunction(torch.autograd.Function):
         d_x, d_y = outputs
         return d_x, d_y
     
+class LomaSum0Function(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx, input):
+        outputs, input_ctx = loma_sum_.forward(input)
+        ctx.input_ctx = input_ctx
+        return outputs
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return loma_sum_.backward(grad_output.contiguous(), *ctx.input_ctx)
+
+
 class LomaAdd(torch.nn.Module):
     
     def __init__(self):
@@ -157,3 +170,11 @@ class LomaMSELoss(torch.nn.Module):
 
     def forward(self, x, y):
         return LomaMSELossFunction.apply(x, y)
+    
+class LomaSum(torch.nn.Module):
+    
+    def __init__(self):
+        super(LomaSum, self).__init__()
+
+    def forward(self, input):
+        return LomaSum0Function.apply(input)

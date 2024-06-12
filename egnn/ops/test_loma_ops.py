@@ -97,6 +97,7 @@ class TestLomaOperators(unittest.TestCase):
         assert torch.allclose(output_sqrt, output_ref_sqrt)
         assert torch.allclose(grad_input_sqrt, grad_input_ref_sqrt)
     
+    # dim = 0
     def test_sum(self):
         
         loma_sum = loma.Sum()
@@ -104,7 +105,7 @@ class TestLomaOperators(unittest.TestCase):
         
         # Forward
         output_sum, input_ctx = loma_sum(input_sum)
-        output_ref_sum = torch.sum(input_sum, dim = 1)
+        output_ref_sum = torch.sum(input_sum, dim = 0)
         
         # Backward
         output_ref_sum.backward(output_ref_sum)
@@ -121,7 +122,7 @@ class TestLomaOperators(unittest.TestCase):
         
         # Forward
         output_mean, input_ctx = loma_mean(input_mean)
-        output_ref_mean = torch.mean(input_mean, dim = 1)
+        output_ref_mean = torch.mean(input_mean, dim = 0)
         
         # Backward
         output_ref_mean.backward(output_ref_mean)
@@ -237,4 +238,5 @@ class TestLomaOperators(unittest.TestCase):
         assert torch.allclose(grad_y_mse, grad_y_ref_mse)
         
 if __name__ == '__main__':
-    unittest.main()
+    test = TestLomaOperators()
+    test.test_sum()

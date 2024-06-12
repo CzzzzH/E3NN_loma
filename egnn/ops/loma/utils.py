@@ -17,6 +17,8 @@ def check_res(a, b, test_name):
     print()
     
 def build_ctypes(tensor, length):
+    if tensor.requires_grad:
+        tensor = tensor.detach()
     np_array = tensor.float().flatten().numpy()
     return np.ctypeslib.as_ctypes(np_array)
 
