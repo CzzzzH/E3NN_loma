@@ -235,9 +235,6 @@ class TestLomaOperators(unittest.TestCase):
         output_ref_sum_aggr.backward(output_ref_sum_aggr)
         grad_input_sum_aggr = loma_sum_aggr.backward(output_sum_aggr, *input_ctx)
         grad_input_ref_sum_aggr = input_sum_aggr.grad
-
-        print(grad_input_ref_sum_aggr)
-        print(grad_input_sum_aggr)
         
         assert torch.allclose(output_sum_aggr, output_ref_sum_aggr)
         assert torch.allclose(grad_input_sum_aggr, grad_input_ref_sum_aggr)
