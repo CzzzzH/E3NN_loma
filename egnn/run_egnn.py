@@ -31,7 +31,7 @@ if args.backend == "loma":
     from ops.torch_ops import LomaMAELoss
     from ops import loma_relu_ # Dumb 
     model = EGNN_loma.EGNN(dataset, dim)
-    loss_fn = nn.L1Loss()
+    loss_fn = LomaMAELoss()
 else:
     print("Using torch backend")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -52,9 +52,7 @@ def train():
     for data in dataset.train_loader:
         optimizer.zero_grad()
         loma_relu_.cl_mem.release_buffers()
-        data = data.to(device)
-        loss = loss_fn(model(data), data.y)
-        # print(loss)
+        loss = loss_fn(model(data)[None], data.y[None])
         loss.backward()
         loss_all += loss * data.num_graphs
         optimizer.step()

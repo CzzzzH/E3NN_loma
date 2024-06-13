@@ -197,8 +197,6 @@ class TestLomaOperators(unittest.TestCase):
         output_ref_relu.backward(output_ref_relu)
         grad_input_relu = loma_relu.backward(output_relu, *input_ctx)
         grad_input_ref_relu = input_relu.grad
-        print(grad_input_ref_relu)
-        print(grad_input_relu)
         
         assert torch.allclose(output_relu, output_ref_relu)
         assert torch.allclose(grad_input_relu, grad_input_ref_relu)

@@ -337,7 +337,7 @@ class BinaryBroadcast(Module):
             output = build_tensor(output_ctype, (bs, num_features))
             return output, (x_cl, y_cl, bs, num_features, num_threads)
         else:
-            getattr(self.lib, self.func_name)(x_ctype, y_ctype, output_ctype, num_threads)
+            getattr(self.lib, self.func_name)(x_ctype, y_ctype, output_ctype, num_features_ctype, num_threads)
             output = build_tensor(output_ctype, (bs, num_features))
             return output, (x_ctype, y_ctype, bs, num_features, num_threads)
 
@@ -505,8 +505,8 @@ class Linear(Module):
             self.cl_mem.add_buffers([input_cl, weight_cl, bias_cl, output_cl, input_features_cl, output_features_cl])
             if DEBUG: print(f"Time to create buffers: {time.time() - start}")
             getattr(self.lib, self.func_name)(input_cl, weight_cl, bias_cl, output_cl, input_features_cl, output_features_cl, num_threads)
-            if DEBUG: print(f"Time to run kernel: {time.time() - start}")
             cl.clFinish(self.cl_cmd_queue)
+            if DEBUG: print(f"Time to run kernel: {time.time() - start}")
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, output_cl, cl.CL_TRUE, 0, ctypes.sizeof(output_ctype), ctypes.byref(output_ctype), 0, None, None)
             output = build_tensor(output_ctype, (bs, out_features))
             if DEBUG: print(f"Time to output: {time.time() - start}\n")
@@ -547,8 +547,8 @@ class Linear(Module):
             self.cl_mem.add_buffers([grad_output_cl, grad_input_cl, grad_weight_cl, grad_bias_cl, in_features_cl, grad_in_features_cl, out_features_cl, grad_out_features_cl])
             if DEBUG: print(f"Time to create buffers (backward): {time.time() - start}")
             getattr(self.lib, f'grad_{self.func_name}')(input_tensor, grad_input_cl, weight_tensor, grad_weight_cl, bias_tensor, grad_bias_cl, grad_output_cl, in_features_cl, grad_in_features_cl, out_features_cl, grad_out_features_cl, num_threads)
-            if DEBUG: print(f"Time to run kernel (backward): {time.time() - start}")
             cl.clFinish(self.cl_cmd_queue)
+            if DEBUG: print(f"Time to run kernel (backward): {time.time() - start}")
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_input_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_input_ctype), ctypes.byref(grad_input_ctype), 0, None, None)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_weight_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_weight_ctype), ctypes.byref(grad_weight_ctype), 0, None, None)
             cl.clEnqueueReadBuffer(self.cl_cmd_queue, grad_bias_cl, cl.CL_TRUE, 0, ctypes.sizeof(grad_bias_ctype), ctypes.byref(grad_bias_ctype), 0, None, None)
