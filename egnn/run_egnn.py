@@ -25,6 +25,11 @@ target = args.target
 dim = 64
 dataset = dataQM9(target=target)
 
+val_mae_list = []
+test_mae_list = []
+avg_epoch_time_list = []
+loss_list = []
+
 if args.backend == "loma":
     print("Using loma backend")
     device = 'cpu'
@@ -56,6 +61,7 @@ def train():
             loma_relu_.cl_mem.release_buffers()
         data = data.to(device)
         loss = loss_fn(model(data)[None], data.y[None])
+        loss_list.append(loss.item())
         loss.backward()
         loss_all += loss * data.num_graphs
         optimizer.step()
@@ -66,16 +72,15 @@ def test(loader):
     model.eval()
     error = 0
 
-    for data in loader:
-        data = data.to(device)
-        error += (model(data) * dataset.std - data.y * dataset.std).abs().sum().item()  # MAE
+    with torch.no_grad():
+        for data in loader:
+            if args.backend == "loma":
+                loma_relu_.cl_mem.release_buffers()
+            data = data.to(device)
+            error += (model(data) * dataset.std - data.y * dataset.std).abs().sum().item()  # MAE
     return error / len(loader.dataset)
 
 if __name__ == '__main__':
-    
-    val_mae_list = []
-    test_mae_list = []
-    avg_epoch_time_list = []
     
     best_val_error = None
     os.makedirs('checkpoints', exist_ok=True)
@@ -115,4 +120,4 @@ if __name__ == '__main__':
             torch.save(model.state_dict(), f'checkpoints/EGNN_{args.backend}_{args.target}_{epoch}.pt')
         
         with open(f'logs/EGNN_{args.backend}_{args.target}.json', 'w') as f:
-            json.dump({'val_mae': val_mae_list, 'test_mae': test_mae_list, 'avg_epoch_time': avg_epoch_time_list}, f)
+            json.dump({'loss': loss_list, 'val_mae': val_mae_list, 'test_mae': test_mae_list, 'avg_epoch_time': avg_epoch_time_list}, f)

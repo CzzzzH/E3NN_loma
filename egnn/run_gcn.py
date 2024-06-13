@@ -25,6 +25,10 @@ target = args.target
 dim = 64
 dataset = dataQM9(target=target)
 
+val_mae_list = []
+test_mae_list = []
+avg_epoch_time_list = []
+
 print("Using torch backend")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 from models import GCN_torch
@@ -61,10 +65,6 @@ def test(loader):
     return error / len(loader.dataset)
 
 if __name__ == '__main__':
-    
-    val_mae_list = []
-    test_mae_list = []
-    avg_epoch_time_list = []
     
     best_val_error = None
     os.makedirs('checkpoints', exist_ok=True)
