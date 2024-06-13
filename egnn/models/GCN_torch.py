@@ -10,9 +10,9 @@ class GCN(nn.Module):
         self.conv1 = GCNConv(dim, dim)
         self.conv2 = GCNConv(dim, dim)
         self.conv3 = GCNConv(dim, dim)
+        self.sum_aggr = aggr.SumAggregation()
         self.lin1 = nn.Linear(dim, dim)
         self.lin2 = nn.Linear(dim, 1)
-        self.sum_aggr = aggr.SumAggregation()
 
     def forward(self, data):
         x = F.relu(self.lin0(data.x))

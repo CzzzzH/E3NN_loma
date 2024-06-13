@@ -1,6 +1,7 @@
 import ctypes
 import numpy as np
 import torch
+import gpuctypes.opencl as cl
 
 def check_res(a, b, test_name):
     if a.shape != b.shape:

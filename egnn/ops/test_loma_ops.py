@@ -2,6 +2,8 @@ import loma
 import torch
 import unittest
 
+torch.manual_seed(0)
+
 class TestLomaOperators(unittest.TestCase):
     
     def test_add(self):
@@ -27,7 +29,8 @@ class TestLomaOperators(unittest.TestCase):
 
         loma_add_broadcast = loma.AddBroadcast()
         x = torch.rand(10, 4, requires_grad=True)
-        y = torch.rand(4, requires_grad=True)
+        y = torch.rand(1, 4, requires_grad=True)
+        
         # Forward
         output_add_broadcast, input_ctx = loma_add_broadcast(x, y)
         output_ref_add_broadcast = x + y
@@ -78,7 +81,26 @@ class TestLomaOperators(unittest.TestCase):
         assert torch.allclose(output_multiply, output_ref_multiply)
         assert torch.allclose(grad_x_multiply, grad_x_ref_multiply)
         assert torch.allclose(grad_y_multiply, grad_y_ref_multiply)
+    
+    def test_multiply_broadcast(self):
+
+        loma_multiply_broadcast = loma.MulBroadcast()
+        x = torch.rand(10, 4, requires_grad=True)
+        y = torch.rand(1, 4, requires_grad=True)
         
+        # Forward
+        output_multiply_broadcast, input_ctx = loma_multiply_broadcast(x, y)
+        output_ref_multiply_broadcast = x * y
+
+        # Backward
+        output_ref_multiply_broadcast.backward(output_ref_multiply_broadcast)
+        grad_x_multiply_broadcast, grad_y_multiply_broadcast = loma_multiply_broadcast.backward(output_multiply_broadcast, *input_ctx)
+        grad_x_ref_multiply_broadcast, grad_y_ref_multiply_broadcast = x.grad, y.grad
+
+        assert torch.allclose(output_multiply_broadcast, output_ref_multiply_broadcast)
+        assert torch.allclose(grad_x_multiply_broadcast, grad_x_ref_multiply_broadcast)
+        assert torch.allclose(grad_y_multiply_broadcast, grad_y_ref_multiply_broadcast)
+    
     def test_divide(self):
         
         loma_divide = loma.Div()
@@ -123,7 +145,7 @@ class TestLomaOperators(unittest.TestCase):
         
         # Forward
         output_sum, input_ctx = loma_sum(input_sum)
-        output_ref_sum = torch.sum(input_sum, dim = 0)
+        output_ref_sum = torch.sum(input_sum, dim=0, keepdim=True)
         
         # Backward
         output_ref_sum.backward(output_ref_sum)
@@ -175,6 +197,8 @@ class TestLomaOperators(unittest.TestCase):
         output_ref_relu.backward(output_ref_relu)
         grad_input_relu = loma_relu.backward(output_relu, *input_ctx)
         grad_input_ref_relu = input_relu.grad
+        print(grad_input_ref_relu)
+        print(grad_input_relu)
         
         assert torch.allclose(output_relu, output_ref_relu)
         assert torch.allclose(grad_input_relu, grad_input_ref_relu)
@@ -222,10 +246,11 @@ class TestLomaOperators(unittest.TestCase):
         loma_sum_aggr = loma.SumAggr()
         input_sum_aggr = torch.rand(10, 4, requires_grad=True)
         index = torch.randint(0, 4, (10,))
+        
         # sort the index
         index = index.sort()[0]
+        
         # Forward
-        index = index.int()
         output_sum_aggr, input_ctx = loma_sum_aggr(input_sum_aggr, index)
         output_ref_sum_aggr = torch.zeros(4, 4)
 
@@ -234,7 +259,7 @@ class TestLomaOperators(unittest.TestCase):
 
         # Backward
         output_ref_sum_aggr.backward(output_ref_sum_aggr)
-        grad_input_sum_aggr = loma_sum_aggr.backward(output_sum_aggr, *input_ctx)
+        grad_input_sum_aggr, _ = loma_sum_aggr.backward(output_sum_aggr, *input_ctx)
         grad_input_ref_sum_aggr = input_sum_aggr.grad
         
         assert torch.allclose(output_sum_aggr, output_ref_sum_aggr)

@@ -37,6 +37,18 @@ def multiply_(x : In[Array[float]],
 
 grad_multiply_ = rev_diff(multiply_)
 
+@simd 
+def multiply_broadcast_(x : In[Array[float]],
+                        y : In[Array[float]],
+                        z : Out[Array[float]],
+                        in_features : In[Array[int]]):
+    idx : int = thread_id()
+    batch_idx : int = idx / in_features[0]
+    feature_idx : int = idx - batch_idx * in_features[0]
+    z[idx] = x[batch_idx * in_features[0] + feature_idx] * y[feature_idx]
+
+grad_multiply_broadcast_ = rev_diff(multiply_broadcast_)
+
 @simd
 def divide_(x : In[Array[float]],
             y : In[Array[float]],
@@ -69,9 +81,9 @@ grad_sum_ = rev_diff(sum_)
 # sum aggregation
 @simd
 def sum_aggr_(input: In[Array[float]],
-          index: In[Array[int]],
-          output: Out[Array[float]],
-          in_features: In[Array[int]]):
+              index: In[Array[int]],
+              output: Out[Array[float]],
+              in_features: In[Array[int]]):
     idx : int = thread_id()
     batch_idx : int = idx / in_features[0]
     feature_idx : int = idx - batch_idx * in_features[0]
@@ -142,10 +154,10 @@ grad_mse_ = rev_diff(mse_)
 
 @simd 
 def mae_(x : In[Array[float]],
-        y : In[Array[float]],
-        z : Out[Array[float]],
-        batch_size : In[Array[int]],
-        out_features : In[Array[int]]):
+         y : In[Array[float]],
+         z : Out[Array[float]],
+         batch_size : In[Array[int]],
+         out_features : In[Array[int]]):
     batch_idx : int = thread_id() / out_features[0]
     feature_idx : int = thread_id() - batch_idx * out_features[0]
     N : float = int2float(batch_size[0] * out_features[0])

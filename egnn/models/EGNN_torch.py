@@ -29,9 +29,8 @@ class EGNNLayer(nn.Module):
         row, col = edge_index
         edge_input = torch.cat([x[row], x[col], edge_attr], dim=1)
         edge_features = self.edge_mlp(edge_input)
-
-        aggregated_edge_features = self.sum_aggr(edge_features, row)
         
+        aggregated_edge_features = self.sum_aggr(edge_features, row)
         node_input = torch.cat([x, aggregated_edge_features], dim=1)
         node_features = self.node_mlp(node_input)
         
