@@ -10,6 +10,7 @@ import gpuctypes.opencl as cl
 from ctypes import CDLL
 from .utils import *
 
+# TARGET = 'c'
 # TARGET = 'ispc'
 TARGET = 'opencl'
 LIB_NAME = 'ops'

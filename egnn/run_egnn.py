@@ -9,6 +9,7 @@ import os
 import torch
 import torch.nn.functional as F
 import time
+import json
 
 torch.manual_seed(233)
 
@@ -17,7 +18,7 @@ parser.add_argument('--backend', type=str, default="loma")
 parser.add_argument('--load-checkpoints', type=int, default=-1)
 parser.add_argument('--save-interval', type=int, default=10)
 parser.add_argument('--epoch', type=int, default=300)
-parser.add_argument('--target', type=int, default=0)
+parser.add_argument('--target', type=int, default=0) # 0 4 10
 args = parser.parse_args()
 
 target = args.target
@@ -51,12 +52,14 @@ def train():
 
     for data in dataset.train_loader:
         optimizer.zero_grad()
-        loma_relu_.cl_mem.release_buffers()
+        if args.backend == "loma":
+            loma_relu_.cl_mem.release_buffers()
+        data = data.to(device)
         loss = loss_fn(model(data)[None], data.y[None])
         loss.backward()
         loss_all += loss * data.num_graphs
         optimizer.step()
-        
+    
     return loss_all / len(dataset.train_loader.dataset) 
 
 def test(loader):
@@ -70,12 +73,17 @@ def test(loader):
 
 if __name__ == '__main__':
     
+    val_mae_list = []
+    test_mae_list = []
+    avg_epoch_time_list = []
+    
     best_val_error = None
     os.makedirs('checkpoints', exist_ok=True)
+    os.makedirs('logs', exist_ok=True)
     start_epoch = 1
     
     if args.load_checkpoints > 0:
-        model.load_state_dict(torch.load(f'checkpoints/EGNN_{args.backend}_{args.load_checkpoints}.pt'))
+        model.load_state_dict(torch.load(f'checkpoints/EGNN_{args.backend}_{args.target}_{args.load_checkpoints}.pt'))
         start_epoch = args.load_checkpoints + 1
     
     total_time = 0
@@ -93,11 +101,18 @@ if __name__ == '__main__':
 
         epoch_time = time.time() - start_time
         total_time += epoch_time
+        avg_epoch_time = total_time / epoch
         
         print(f'Epoch: {epoch:03d}, LR: {lr:7f}, Loss: {loss:.7f}, '
               f'Val MAE: {val_error:.7f}, Test MAE: {test_error:.7f}, '
-              f'Epoch Time: {time.time() - start_time:.7f}, Avg Epoch Time: {total_time / epoch:.7f}')
+              f'Epoch Time: {time.time() - start_time:.7f}, Avg Epoch Time: {avg_epoch_time:.7f}')
+        
+        val_mae_list.append(val_error)
+        test_mae_list.append(test_error)
+        avg_epoch_time_list.append(avg_epoch_time)
         
         if epoch % args.save_interval == 0:
-            torch.save(model.state_dict(), f'checkpoints/EGNN_{args.backend}_{epoch}.pt')
-            
+            torch.save(model.state_dict(), f'checkpoints/EGNN_{args.backend}_{args.target}_{epoch}.pt')
+        
+        with open(f'logs/EGNN_{args.backend}_{args.target}.json', 'w') as f:
+            json.dump({'val_mae': val_mae_list, 'test_mae': test_mae_list, 'avg_epoch_time': avg_epoch_time_list}, f)
