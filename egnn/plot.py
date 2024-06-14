@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 if __name__ == "__main__":
     
     os.makedirs('plots', exist_ok=True)
-    with open('logs/EGNN_loma_0.json', 'r') as f:
+    with open('logs/EGNN_loma_0_ref.json', 'r') as f:
         loma_res = json.load(f)
-    with open('logs/EGNN_torch_0.json', 'r') as f:
+    with open('logs/EGNN_torch_0_ref.json', 'r') as f:
         torch_res = json.load(f)
     
     # Plot Loss
@@ -43,3 +43,27 @@ if __name__ == "__main__":
     ax.set_title('Validation MAE')
     ax.legend()
     plt.savefig('plots/val.pdf')
+    
+    # Plot evaluation
+    target_list = [0, 4, 10]
+    target_name = ['mu', 'delta_epsilon', 'G']
+    for i in range(3):
+        with open(f'logs/EGNN_torch_{target_list[i]}.json', 'r') as f:
+            EGNN_res = json.load(f)
+        with open(f'logs/GCN_torch_{target_list[i]}.json', 'r') as f:
+            GCN_res = json.load(f)
+            
+        # Plot Val MAE
+        plt.style.use('bmh')
+        fig, ax = plt.subplots(dpi=300)
+        val_egnn = EGNN_res['val_mae']
+        val_gcn = GCN_res['val_mae']
+        
+        x_range = range(1, len(val_egnn) + 1)
+        ax.plot(x_range, val_egnn, label='EGNN')
+        ax.plot(x_range, val_gcn, label='GCN')
+        ax.set_xlabel('Epoch')
+        ax.set_ylabel('MAE')
+        ax.set_title(f'Validation MAE for Target Property {target_name[i]}')
+        ax.legend()
+        plt.savefig(f'plots/val_{i}.pdf')
